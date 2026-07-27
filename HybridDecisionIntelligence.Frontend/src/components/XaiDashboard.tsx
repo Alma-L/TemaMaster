@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   CheckCircle,
   XCircle,
@@ -21,23 +21,34 @@ import { DecisionRecord } from '../types';
  */
 export const XaiDashboard: React.FC = () => {
   const { decisions, loading, error } = useDecisions();
-  const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [expandedRow, setExpandedRow] = useState<number | null>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | 'approved' | 'rejected'>('all');
 
+  // Guard against null decisions from the hook
+  const safeDecisions: DecisionRecord[] = decisions ?? [];
+
+  const getAiDecisionLabel = (decision: DecisionRecord): 'Approved' | 'Rejected' =>
+    decision.mlPredicted ? 'Approved' : 'Rejected';
+
+  const getFinalDecisionLabel = (decision: DecisionRecord): 'Approved' | 'Rejected' =>
+    decision.finalDecision ? 'Approved' : 'Rejected';
+
+  const mlProbability = (decision: DecisionRecord): number => decision.mlConfidence ?? 0;
+
   // Filter decisions based on status
-  const filteredDecisions = decisions.filter((decision) => {
+  const filteredDecisions = safeDecisions.filter((decision) => {
     if (filterStatus === 'all') return true;
-    if (filterStatus === 'approved') return decision.finalDecision === 'Approved';
-    if (filterStatus === 'rejected') return decision.finalDecision === 'Rejected';
+    if (filterStatus === 'approved') return decision.finalDecision;
+    if (filterStatus === 'rejected') return !decision.finalDecision;
     return true;
   });
 
   // Calculate metrics
   const metrics = {
-    total: decisions.length,
-    approved: decisions.filter((d) => d.finalDecision === 'Approved').length,
-    rejected: decisions.filter((d) => d.finalDecision === 'Rejected').length,
-    overridden: decisions.filter((d) => d.wasOverridden).length,
+    total: safeDecisions.length,
+    approved: safeDecisions.filter((d) => d.finalDecision).length,
+    rejected: safeDecisions.filter((d) => !d.finalDecision).length,
+    overridden: safeDecisions.filter((d) => d.wasOverridden).length,
   };
 
   const overrideRate = metrics.total > 0 ? ((metrics.overridden / metrics.total) * 100).toFixed(2) : '0.00';
@@ -193,7 +204,7 @@ export const XaiDashboard: React.FC = () => {
                   </tr>
                 ) : (
                   filteredDecisions.map((decision) => (
-                    <tbody key={decision.id}>
+                    <>
                       <tr className="border-t border-slate-600 hover:bg-slate-600/50 transition-colors">
                         <td className="px-6 py-4 text-sm font-medium text-white">{decision.customerId}</td>
                         <td className="px-6 py-4 text-sm text-slate-300">
@@ -202,39 +213,39 @@ export const XaiDashboard: React.FC = () => {
                               <div className="w-16 h-2 bg-slate-600 rounded-full overflow-hidden">
                                 <div
                                   className="h-full bg-gradient-to-r from-blue-500 to-blue-400"
-                                  style={{ width: `${(decision.mlProbability || 0) * 100}%` }}
+                                  style={{ width: `${mlProbability(decision) * 100}%` }}
                                 ></div>
                               </div>
                             </div>
-                            <span className="font-mono">{((decision.mlProbability || 0) * 100).toFixed(1)}%</span>
+                            <span className="font-mono">{(mlProbability(decision) * 100).toFixed(1)}%</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm">
                           <span
                             className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              decision.aiDecision === 'Approved'
+                              getAiDecisionLabel(decision) === 'Approved'
                                 ? 'bg-green-500/20 text-green-300'
                                 : 'bg-red-500/20 text-red-300'
                             }`}
                           >
-                            {decision.aiDecision}
+                            {getAiDecisionLabel(decision)}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm">
                           <div className="flex items-center gap-2">
-                            {decision.finalDecision === 'Approved' ? (
+                            {decision.finalDecision ? (
                               <CheckCircle className="text-green-400" size={18} />
                             ) : (
                               <XCircle className="text-red-400" size={18} />
                             )}
                             <span
                               className={`font-semibold ${
-                                decision.finalDecision === 'Approved'
+                                decision.finalDecision
                                   ? 'text-green-400'
                                   : 'text-red-400'
                               }`}
                             >
-                              {decision.finalDecision}
+                              {getFinalDecisionLabel(decision)}
                             </span>
                           </div>
                         </td>
@@ -292,9 +303,9 @@ export const XaiDashboard: React.FC = () => {
                                 <p className="text-slate-300">
                                   Machine Learning model evaluated the customer with{' '}
                                   <span className="font-bold text-blue-400">
-                                    {((decision.mlProbability || 0) * 100).toFixed(1)}% confidence
+                                    {(mlProbability(decision) * 100).toFixed(1)}% confidence
                                   </span>
-                                  . Recommendation: <span className="font-bold text-blue-400">{decision.aiDecision}</span>
+                                  . Recommendation: <span className="font-bold text-blue-400">{getAiDecisionLabel(decision)}</span>
                                 </p>
                               </div>
 
@@ -317,7 +328,7 @@ export const XaiDashboard: React.FC = () => {
                                   ✓ Observation (Final Verdict)
                                 </h4>
                                 <p className="text-slate-300">
-                                  Final Decision: <span className="font-bold text-green-400">{decision.finalDecision}</span>
+                                  Final Decision: <span className="font-bold text-green-400">{getFinalDecisionLabel(decision)}</span>
                                 </p>
                                 <p className="text-slate-400 text-sm mt-2">
                                   This decision was overridden due to specialized business rules that supersede the ML recommendation to ensure compliance and risk management.
@@ -327,7 +338,7 @@ export const XaiDashboard: React.FC = () => {
                           </td>
                         </tr>
                       )}
-                    </tbody>
+                    </>
                   ))
                 )}
               </tbody>
@@ -339,7 +350,7 @@ export const XaiDashboard: React.FC = () => {
         <div className="mt-8 text-center text-slate-400 text-sm">
           <p>
             Phase 6: Explainable AI Dashboard • {metrics.total} total decisions analyzed •{' '}
-            {((metrics.approved / (metrics.total || 1)) * 100).toFixed(1)}% approval rate
+            {metrics.total > 0 ? ((metrics.approved / metrics.total) * 100).toFixed(1) : '0.0'}% approval rate
           </p>
         </div>
       </div>

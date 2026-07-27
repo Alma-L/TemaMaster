@@ -1,4 +1,5 @@
 using HybridDecisionIntelligence.Domain.Entities;
+using HybridDecisionIntelligence.Application.Repositories;
 using HybridDecisionIntelligence.Application.Requests;
 using HybridDecisionIntelligence.Application.Services;
 using MediatR;
@@ -14,15 +15,18 @@ namespace HybridDecisionIntelligence.Application.Handlers
     {
         private readonly IMLPredictor _mlPredictor;
         private readonly IDecisionEngine _decisionEngine;
+        private readonly IBankCustomerRepository _customerRepository;
         private readonly ILogger<MakeDecisionHandler> _logger;
 
         public MakeDecisionHandler(
             IMLPredictor mlPredictor,
             IDecisionEngine decisionEngine,
+            IBankCustomerRepository customerRepository,
             ILogger<MakeDecisionHandler> logger)
         {
             _mlPredictor = mlPredictor;
             _decisionEngine = decisionEngine;
+            _customerRepository = customerRepository;
             _logger = logger;
         }
 
@@ -43,11 +47,21 @@ namespace HybridDecisionIntelligence.Application.Handlers
                     Balance = request.Balance,
                     Housing = request.Housing,
                     Loan = request.Loan,
+                    Default = request.Default,
                     Duration = request.Duration,
                     Campaign = request.Campaign,
-                    Previous = request.Previous
+                    Previous = request.Previous,
+                    Contact = request.Contact,
+                    Day = request.Day,
+                    Month = request.Month,
+                    PDays = request.PDays,
+                    POutcome = request.POutcome
                 };
-                
+
+                // Persist the customer's submitted profile so it can be displayed
+                // alongside the decision later (e.g. in the XAI dashboard detail view).
+                await _customerRepository.SaveOrUpdateCustomerAsync(customer);
+
                 // Step 1: Get ML Prediction
                 _logger.LogInformation("Requesting ML prediction...");
                 var mlResult = await _mlPredictor.PredictAsync(customer);

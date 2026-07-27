@@ -30,10 +30,17 @@ namespace HybridDecisionIntelligence.Application.Repositories
     /// </summary>
     public interface IBankCustomerRepository
     {
+        Task<BankCustomer?> FindCustomerByIdAsync(int id);
         Task<BankCustomer> GetCustomerByIdAsync(int id);
         Task<List<BankCustomer>> GetAllCustomersAsync();
         Task SaveCustomerAsync(BankCustomer customer);
         Task UpdateCustomerAsync(BankCustomer customer);
+
+        /// <summary>
+        /// Insert the customer if this Id hasn't been seen before, otherwise
+        /// overwrite their stored profile with the latest submitted data.
+        /// </summary>
+        Task SaveOrUpdateCustomerAsync(BankCustomer customer);
     }
 
     /// <summary>

@@ -13,7 +13,7 @@ namespace HybridDecisionIntelligence.Application.Services
     {
         Task<MLPredictionResult> PredictAsync(BankCustomer customer);
         Task<bool> TrainModelAsync(string dataPath);
-        Task<float> EvaluateModelAsync(string testDataPath);
+        float EvaluateModel(string testDataPath);
     }
 
     /// <summary>
@@ -53,7 +53,7 @@ namespace HybridDecisionIntelligence.Application.Services
                 {
                     CustomerId = customer.Id,
                     PredictedLabel = prediction.Prediction,
-                    Score = prediction.Score != null ? prediction.Score[0] : 0f,
+                    Score = prediction.Score,
                     Probability = prediction.Probability,
                     CreatedAt = DateTime.UtcNow
                 };
@@ -77,10 +77,10 @@ namespace HybridDecisionIntelligence.Application.Services
             return await _modelService.TrainModelAsync(dataPath);
         }
 
-        public async Task<float> EvaluateModelAsync(string testDataPath)
+        public float EvaluateModel(string testDataPath)
         {
             _logger.LogInformation($"Evaluating ML model with test data from {testDataPath}");
-            return await _modelService.EvaluateModelAsync(testDataPath);
+            return _modelService.EvaluateModel(testDataPath);
         }
 
         private BankMarketingData CustomerToMLData(BankCustomer customer)

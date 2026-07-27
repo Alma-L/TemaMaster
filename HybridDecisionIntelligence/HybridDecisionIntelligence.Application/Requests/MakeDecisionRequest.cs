@@ -16,9 +16,19 @@ namespace HybridDecisionIntelligence.Application.Requests
         public decimal Balance { get; set; }
         public required string Housing { get; set; }
         public required string Loan { get; set; }
+        public string Default { get; set; } = "no";
         public int Duration { get; set; }
         public int Campaign { get; set; }
         public int Previous { get; set; }
+
+        // Optional context features the ML model was trained on. When omitted,
+        // they default to values meaning "no prior contact" so single manual
+        // evaluations still work without requiring every UCI dataset column.
+        public string Contact { get; set; } = "unknown";
+        public int Day { get; set; } = 1;
+        public string Month { get; set; } = "may";
+        public int PDays { get; set; } = -1;
+        public string POutcome { get; set; } = "unknown";
     }
 
     /// <summary>
@@ -33,7 +43,7 @@ namespace HybridDecisionIntelligence.Application.Requests
         public bool FinalDecision { get; set; }
         public decimal ApprovedInterestRate { get; set; }
         public bool WasOverridden { get; set; }
-        public string AuditTrail { get; set; }
+        public string AuditTrail { get; set; } = string.Empty;
         public List<string> AppliedRules { get; set; } = new();
         public DateTime DecisionTime { get; set; } = DateTime.UtcNow;
     }

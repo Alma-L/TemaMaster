@@ -19,7 +19,8 @@ namespace HybridDecisionIntelligence.Infrastructure.Repositories
 
         public async Task<HybridDecision> GetDecisionByIdAsync(int id)
         {
-            return await _context.HybridDecisions.FindAsync(id);
+            var decision = await _context.HybridDecisions.FindAsync(id);
+            return decision ?? throw new KeyNotFoundException($"Decision with ID {id} not found");
         }
 
         public async Task<List<HybridDecision>> GetCustomerDecisionsAsync(int customerId)
@@ -67,7 +68,8 @@ namespace HybridDecisionIntelligence.Infrastructure.Repositories
 
         public async Task<BusinessRule> GetRuleByIdAsync(int id)
         {
-            return await _context.BusinessRules.FindAsync(id);
+            var rule = await _context.BusinessRules.FindAsync(id);
+            return rule ?? throw new KeyNotFoundException($"Business rule with ID {id} not found");
         }
 
         public async Task SaveRuleAsync(BusinessRule rule)
@@ -107,9 +109,15 @@ namespace HybridDecisionIntelligence.Infrastructure.Repositories
             _logger = logger;
         }
 
-        public async Task<BankCustomer> GetCustomerByIdAsync(int id)
+        public async Task<BankCustomer?> FindCustomerByIdAsync(int id)
         {
             return await _context.BankCustomers.FindAsync(id);
+        }
+
+        public async Task<BankCustomer> GetCustomerByIdAsync(int id)
+        {
+            var customer = await _context.BankCustomers.FindAsync(id);
+            return customer ?? throw new KeyNotFoundException($"Customer with ID {id} not found");
         }
 
         public async Task<List<BankCustomer>> GetAllCustomersAsync()
@@ -131,6 +139,23 @@ namespace HybridDecisionIntelligence.Infrastructure.Repositories
             await _context.SaveChangesAsync();
             _logger.LogInformation($"Customer updated: {customer.Id}");
         }
+
+        public async Task SaveOrUpdateCustomerAsync(BankCustomer customer)
+        {
+            var existing = await _context.BankCustomers.FindAsync(customer.Id);
+            if (existing == null)
+            {
+                _context.BankCustomers.Add(customer);
+            }
+            else
+            {
+                customer.UpdatedAt = DateTime.UtcNow;
+                _context.Entry(existing).CurrentValues.SetValues(customer);
+            }
+
+            await _context.SaveChangesAsync();
+            _logger.LogInformation($"Customer profile saved for {customer.Id}");
+        }
     }
 
     public class MLPredictionRepository : IMLPredictionRepository
@@ -146,7 +171,8 @@ namespace HybridDecisionIntelligence.Infrastructure.Repositories
 
         public async Task<MLPredictionResult> GetPredictionByIdAsync(int id)
         {
-            return await _context.MLPredictionResults.FindAsync(id);
+            var prediction = await _context.MLPredictionResults.FindAsync(id);
+            return prediction ?? throw new KeyNotFoundException($"Prediction with ID {id} not found");
         }
 
         public async Task<List<MLPredictionResult>> GetCustomerPredictionsAsync(int customerId)

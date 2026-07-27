@@ -1,5 +1,6 @@
 using Xunit;
 using FluentAssertions;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using HybridDecisionIntelligence.Domain.Entities;
 using HybridDecisionIntelligence.Infrastructure.Data;
@@ -12,13 +13,21 @@ namespace HybridDecisionIntelligence.Tests
     /// </summary>
     public class DatabaseValidationTests : IDisposable
     {
+        private readonly SqliteConnection _connection;
         private readonly HybridDecisionContext _context;
 
         public DatabaseValidationTests()
         {
-            // Use in-memory SQLite for testing
+            // A SQLite ":memory:" database only lives as long as its connection stays open.
+            // Passing just the connection *string* to UseSqlite() lets EF Core open/close a
+            // fresh (and therefore empty) in-memory database per operation, which is why
+            // EnsureCreated() would succeed but a later SaveChanges() would fail with
+            // "no such table". Keeping one open connection for the test's lifetime fixes this.
+            _connection = new SqliteConnection("Data Source=:memory:");
+            _connection.Open();
+
             var options = new DbContextOptionsBuilder<HybridDecisionContext>()
-                .UseSqlite("Data Source=:memory:")
+                .UseSqlite(_connection)
                 .Options;
 
             _context = new HybridDecisionContext(options);
@@ -32,7 +41,10 @@ namespace HybridDecisionIntelligence.Tests
         public void SaveHybridDecision_WithCompleteAuditTrail_ShouldPersistCorrectly()
         {
             // Arrange
-            var customerId = 1;
+            // Note: customerId 1 is reserved by HybridDecisionContext's seed data
+            // (SeedSampleDecisionData), so a query for CustomerId == 1 could match
+            // either row nondeterministically. Use a customerId no seed data uses.
+            var customerId = 101;
             var decision = new HybridDecision
             {
                 CustomerId = customerId,
@@ -187,7 +199,7 @@ namespace HybridDecisionIntelligence.Tests
             // Assert
             retrieved.WasOverridden.Should().BeTrue();
             retrieved.OverrideReason.Should().NotBeEmpty();
-            retrieved.OverrideReason.Should().Contain("Interest rate");
+            retrieved.OverrideReason.Should().Contain("interest rate");
         }
 
         /// <summary>
@@ -293,7 +305,7 @@ namespace HybridDecisionIntelligence.Tests
 
             // Assert
             retrieved.AuditTrail.Length.Should().Be(largeAuditTrail.Length, "Audit trail should not be truncated");
-            retrieved.AuditTrail.Should().Contain("Rule 50 evaluated=true");
+            retrieved.AuditTrail.Should().Contain("Rule 50 evaluated=True");
         }
 
         /// <summary>
@@ -337,6 +349,7 @@ namespace HybridDecisionIntelligence.Tests
         public void Dispose()
         {
             _context?.Dispose();
+            _connection?.Dispose();
         }
     }
 }

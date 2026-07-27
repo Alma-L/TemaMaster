@@ -19,8 +19,8 @@ namespace HybridDecisionIntelligence.Domain.Entities
     public class BusinessRule
     {
         public int Id { get; set; }
-        public string Name { get; set; }
-        public string Description { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
         public decimal MinBalance { get; set; }
         public int MinAge { get; set; }
         public int MaxAge { get; set; }

@@ -1,5 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { DecisionRecord } from '../types';
+import { apiFetch } from '../api/apiClient';
+
+export const DEFAULT_PAGE_SIZE = 15;
 
 /**
  * Return type for useDecisions hook
@@ -8,45 +11,35 @@ interface UseDecisionsReturn {
   decisions: DecisionRecord[] | null;
   loading: boolean;
   error: string | null;
+  page: number;
+  pageSize: number;
+  hasNextPage: boolean;
+  setPage: (page: number) => void;
   refetch: () => Promise<void>;
 }
 
 /**
- * Custom hook for fetching decisions from the .NET Web API
- * 
- * API Endpoint: GET /api/v1/decisions
- * Handles loading, error states, and data transformation
+ * Custom hook for fetching a page of decisions from the .NET Web API
+ *
+ * API Endpoint: GET /api/v1/decisions?page={page}&pageSize={pageSize}
+ * Handles loading, error states, and pagination
  */
-export const useDecisions = (): UseDecisionsReturn => {
+export const useDecisions = (pageSize: number = DEFAULT_PAGE_SIZE): UseDecisionsReturn => {
   const [decisions, setDecisions] = useState<DecisionRecord[] | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState<number>(1);
 
-  const API_BASE_URL =
-    process.env.REACT_APP_API_URL || 'https://localhost:7074/api';
-
-  /**
-   * Fetch decisions from backend API
-   */
-  const fetchDecisions = async () => {
+  const fetchDecisions = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/v1/decisions`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const data = await apiFetch<DecisionRecord[]>(
+        `v1/decisions?page=${page}&pageSize=${pageSize}`,
+        { method: 'GET' }
+      );
 
-      if (!response.ok) {
-        throw new Error(
-          `API Error: ${response.status} ${response.statusText}`
-        );
-      }
-
-      const data: DecisionRecord[] = await response.json();
       setDecisions(data);
     } catch (err) {
       const errorMessage =
@@ -56,22 +49,20 @@ export const useDecisions = (): UseDecisionsReturn => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, pageSize]);
 
-  // Fetch data on component mount
   useEffect(() => {
     fetchDecisions();
-
-    // Optional: Poll for updated data every 10 seconds
-    // Uncomment if you want real-time updates
-    // const interval = setInterval(fetchDecisions, 10000);
-    // return () => clearInterval(interval);
-  }, []);
+  }, [fetchDecisions]);
 
   return {
     decisions,
     loading,
     error,
+    page,
+    pageSize,
+    hasNextPage: (decisions?.length ?? 0) === pageSize,
+    setPage,
     refetch: fetchDecisions,
   };
 };

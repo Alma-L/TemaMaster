@@ -84,6 +84,7 @@ namespace HybridDecisionIntelligence.Infrastructure.Data
 
             // Seed default business rules
             SeedBusinessRules(modelBuilder);
+            SeedSampleDecisionData(modelBuilder);
         }
 
         private static void SeedBusinessRules(ModelBuilder modelBuilder)
@@ -124,6 +125,64 @@ namespace HybridDecisionIntelligence.Infrastructure.Data
                     MaxInterestRate = 0.12m,
                     MinInterestRate = 0.02m,
                     IsActive = true
+                }
+            );
+        }
+
+        private static void SeedSampleDecisionData(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<BankCustomer>().HasData(
+                new BankCustomer
+                {
+                    Id = 1,
+                    Age = 38,
+                    Job = "technician",
+                    Marital = "married",
+                    Education = "tertiary",
+                    Default = "no",
+                    Balance = 32000m,
+                    Housing = "yes",
+                    Loan = "no",
+                    Contact = "cellular",
+                    Day = 12,
+                    Month = "may",
+                    Duration = 210,
+                    Campaign = 2,
+                    PDays = 999,
+                    Previous = 0,
+                    POutcome = "unknown",
+                    SubscribedToTerm = false,
+                    CreatedAt = DateTime.UtcNow
+                }
+            );
+
+            modelBuilder.Entity<MLPredictionResult>().HasData(
+                new MLPredictionResult
+                {
+                    Id = 1,
+                    CustomerId = 1,
+                    PredictedLabel = true,
+                    Score = 0.82f,
+                    Probability = 0.82f,
+                    CreatedAt = DateTime.UtcNow
+                }
+            );
+
+            modelBuilder.Entity<HybridDecision>().HasData(
+                new HybridDecision
+                {
+                    Id = 1,
+                    CustomerId = 1,
+                    MLPredictionResultId = 1,
+                    MLPredicted = true,
+                    MLConfidence = 0.82f,
+                    FinalDecision = true,
+                    AuditTrail = "ML predicted APPROVE with 82% confidence | Business rules passed | Final decision approved",
+                    ApprovedInterestRate = 0.045m,
+                    RulesApplied = "Minimum Balance Rule, Age Eligibility Rule",
+                    CreatedAt = DateTime.UtcNow,
+                    WasOverridden = false,
+                    OverrideReason = string.Empty
                 }
             );
         }

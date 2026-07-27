@@ -7,51 +7,47 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        indigo: {
-          50: '#f0f4ff',
-          100: '#e0e7ff',
-          600: '#4f46e5',
-          700: '#4338ca',
-          900: '#312e81',
+        // Brand: navy blue + white. This is the only accent hue used for
+        // chrome/interactive elements — green/amber/red are reserved strictly
+        // for decision status (approved/overridden/rejected), never decoration.
+        navy: {
+          50: '#f0f4f9',
+          100: '#dbe5f0',
+          200: '#b3c9e0',
+          300: '#82a6cb',
+          400: '#5480b0',
+          500: '#356093',
+          600: '#264a76',
+          700: '#1d3a5f',
+          800: '#152c49',
+          900: '#0e1e33',
+          950: '#081320',
         },
-        blue: {
-          50: '#f0f4ff',
-          500: '#3b82f6',
-          600: '#2563eb',
-        },
-        green: {
+        success: {
           50: '#f0fdf4',
           100: '#dcfce7',
+          200: '#bbf7d0',
           600: '#16a34a',
-          800: '#166534',
+          700: '#15803d',
         },
-        red: {
+        danger: {
           50: '#fef2f2',
           100: '#fee2e2',
+          200: '#fecaca',
           600: '#dc2626',
-          800: '#991b1b',
+          700: '#b91c1c',
         },
-        yellow: {
-          50: '#fefce8',
-          100: '#fef08a',
-          200: '#fef08a',
-          600: '#ca8a04',
-        },
-        gray: {
-          50: '#f9fafb',
-          100: '#f3f4f6',
-          200: '#e5e7eb',
-          300: '#d1d5db',
-          500: '#6b7280',
-          600: '#4b5563',
-          700: '#374151',
-          800: '#1f2937',
-          900: '#111827',
+        warning: {
+          50: '#fffbeb',
+          100: '#fef3c7',
+          200: '#fde68a',
+          600: '#d97706',
+          700: '#b45309',
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['Fira Code', 'monospace'],
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['Fira Code', 'Menlo', 'monospace'],
       },
       boxShadow: {
         sm: '0 1px 2px 0 rgb(0 0 0 / 0.05)',

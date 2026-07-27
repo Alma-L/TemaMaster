@@ -16,7 +16,7 @@ namespace HybridDecisionIntelligence.Application.Services
         /// <summary>
         /// Evaluate model performance on test data
         /// </summary>
-        Task<float> EvaluateModelAsync(string testDataPath);
+        float EvaluateModel(string testDataPath);
 
         /// <summary>
         /// Make a prediction using the trained model
@@ -26,11 +26,11 @@ namespace HybridDecisionIntelligence.Application.Services
         /// <summary>
         /// Save trained model to disk
         /// </summary>
-        Task SaveModelAsync(string modelPath);
+        void SaveModel(string modelPath);
 
         /// <summary>
         /// Load previously trained model from disk
         /// </summary>
-        Task LoadModelAsync(string modelPath);
+        void LoadModel(string modelPath);
     }
 }

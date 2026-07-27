@@ -43,8 +43,8 @@ namespace HybridDecisionIntelligence.Tests
             var metrics = _evaluator.CalculateMetrics(predictions);
 
             // Assert
-            metrics.Accuracy.Should().BeGreaterThan(0.70, "Model accuracy should exceed 70%");
-            metrics.Accuracy.Should().BeLessThanOrEqualTo(1.0, "Accuracy cannot exceed 100%");
+            metrics.Accuracy.Should().BeGreaterThan(0.70f, "Model accuracy should exceed 70%");
+            metrics.Accuracy.Should().BeLessThanOrEqualTo(1.0f, "Accuracy cannot exceed 100%");
         }
 
         /// <summary>
@@ -73,8 +73,8 @@ namespace HybridDecisionIntelligence.Tests
 
             // Assert
             // TP=4, FP=1, so Precision = 4/(4+1) = 0.8
-            metrics.Precision.Should().Be(0.80f, precision: 0.01f, "Precision = TP/(TP+FP)");
-            metrics.Precision.Should().BeGreaterThanOrEqualTo(0.70, "Precision should exceed 70%");
+            metrics.Precision.Should().BeApproximately(0.80f, 0.01f, "Precision = TP/(TP+FP)");
+            metrics.Precision.Should().BeGreaterThanOrEqualTo(0.70f, "Precision should exceed 70%");
         }
 
         /// <summary>
@@ -103,8 +103,8 @@ namespace HybridDecisionIntelligence.Tests
 
             // Assert
             // TP=3, FN=1, so Recall = 3/(3+1) = 0.75
-            metrics.Recall.Should().Be(0.75f, precision: 0.01f, "Recall = TP/(TP+FN)");
-            metrics.Recall.Should().BeGreaterThanOrEqualTo(0.70, "Recall should exceed 70%");
+            metrics.Recall.Should().BeApproximately(0.75f, 0.01f, "Recall = TP/(TP+FN)");
+            metrics.Recall.Should().BeGreaterThanOrEqualTo(0.70f, "Recall should exceed 70%");
         }
 
         /// <summary>
@@ -129,8 +129,8 @@ namespace HybridDecisionIntelligence.Tests
             var metrics = _evaluator.CalculateMetrics(predictions);
 
             // Assert
-            metrics.F1Score.Should().BeGreaterThan(0.50, "F1 score should be reasonable");
-            metrics.F1Score.Should().BeLessThanOrEqualTo(1.0, "F1 score cannot exceed 1.0");
+            metrics.F1Score.Should().BeGreaterThan(0.50f, "F1 score should be reasonable");
+            metrics.F1Score.Should().BeLessThanOrEqualTo(1.0f, "F1 score cannot exceed 1.0");
         }
 
         /// <summary>
@@ -156,8 +156,8 @@ namespace HybridDecisionIntelligence.Tests
             var metrics = _evaluator.CalculateMetrics(predictions);
 
             // Assert
-            metrics.AUC.Should().BeGreaterThan(0.50, "AUC should be better than random guessing");
-            metrics.AUC.Should().BeLessThanOrEqualTo(1.0, "AUC cannot exceed 1.0");
+            metrics.AUC.Should().BeGreaterThan(0.50f, "AUC should be better than random guessing");
+            metrics.AUC.Should().BeLessThanOrEqualTo(1.0f, "AUC cannot exceed 1.0");
         }
 
         /// <summary>
@@ -242,7 +242,7 @@ namespace HybridDecisionIntelligence.Tests
 
             // Assert
             stopwatch.ElapsedMilliseconds.Should().BeLessThan(1000, "Calculation should complete within 1 second");
-            metrics.Accuracy.Should().BeGreaterThan(0.30, "Random 50/50 data should average ~50% accuracy");
+            metrics.Accuracy.Should().BeGreaterThan(0.30f, "Random 50/50 data should average ~50% accuracy");
         }
 
         /// <summary>

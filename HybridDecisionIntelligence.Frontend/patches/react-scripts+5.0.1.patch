@@ -1,0 +1,13 @@
+diff --git a/node_modules/react-scripts/config/webpackDevServer.config.js b/node_modules/react-scripts/config/webpackDevServer.config.js
+index 522a81b..bf67a0b 100644
+--- a/node_modules/react-scripts/config/webpackDevServer.config.js
++++ b/node_modules/react-scripts/config/webpackDevServer.config.js
+@@ -101,6 +101,8 @@ module.exports = function (proxy, allowedHost) {
+ 
+     https: getHttpsConfig(),
+     host,
++    hot: false,
++    liveReload: false,
+     historyApiFallback: {
+       // Paths with dots should still use the history fallback.
+       // See https://github.com/facebook/create-react-app/issues/387.
