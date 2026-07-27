@@ -18,7 +18,7 @@ builder.Services.AddSwaggerGen();
 
 // Database
 builder.Services.AddDbContext<HybridDecisionContext>(options =>
-    options.UseSqlite(
+    options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         opt => opt.MigrationsAssembly("HybridDecisionIntelligence.Infrastructure")
     )
