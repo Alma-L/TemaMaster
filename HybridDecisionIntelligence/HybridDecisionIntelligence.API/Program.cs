@@ -86,7 +86,33 @@ app.MapControllers();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<HybridDecisionContext>();
-    db.Database.EnsureCreated();
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    var connectionSummary = connectionString is null
+        ? "(missing DefaultConnection)"
+        : string.Join(';', connectionString.Split(';')
+            .Where(p => p.StartsWith("Server=", StringComparison.OrdinalIgnoreCase)
+                     || p.StartsWith("Database=", StringComparison.OrdinalIgnoreCase)
+                     || p.StartsWith("Trusted_Connection=", StringComparison.OrdinalIgnoreCase)));
+
+    app.Logger.LogInformation("Connecting to SQL Server: {ConnectionSummary}", connectionSummary);
+
+    bool created;
+    try
+    {
+        // EnsureCreated creates the database if missing; CanConnectAsync would fail before that.
+        created = db.Database.EnsureCreated();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex,
+            "Cannot reach SQL Server or create the database. Ensure SQL Server is running and ConnectionStrings:DefaultConnection is correct ({ConnectionSummary}).",
+            connectionSummary);
+        throw;
+    }
+
+    app.Logger.LogInformation(created
+        ? "Database schema created (HybridDecisionIntelligenceDb)"
+        : "Database already exists — schema left as-is (EnsureCreated does not alter existing tables)");
 
     if (!db.HybridDecisions.Any())
     {
@@ -147,7 +173,12 @@ using (var scope = app.Services.CreateScope())
         app.Logger.LogInformation("Seeded sample hybrid decision data");
     }
 
-    app.Logger.LogInformation("Database created or already up to date");
+    app.Logger.LogInformation(
+        "DB ready — Customers: {Customers}, Predictions: {Predictions}, Decisions: {Decisions}, Rules: {Rules}",
+        db.BankCustomers.Count(),
+        db.MLPredictionResults.Count(),
+        db.HybridDecisions.Count(),
+        db.BusinessRules.Count());
 }
 
 // ML model bootstrap: train from the UCI Bank Marketing dataset on first run

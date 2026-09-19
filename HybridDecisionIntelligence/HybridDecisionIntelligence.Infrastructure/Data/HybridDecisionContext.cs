@@ -26,6 +26,11 @@ namespace HybridDecisionIntelligence.Infrastructure.Data
             modelBuilder.Entity<BankCustomer>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                // Id is a caller-supplied customer identifier (set explicitly by
+                // MakeDecisionHandler from the request), not a DB-generated surrogate.
+                // Without this, SQL Server creates Id as IDENTITY and rejects any
+                // explicit insert with "IDENTITY_INSERT is set to OFF".
+                entity.Property(e => e.Id).ValueGeneratedNever();
                 entity.Property(e => e.Age).IsRequired();
                 entity.Property(e => e.Job).HasMaxLength(20);
                 entity.Property(e => e.Marital).HasMaxLength(20);
