@@ -1,4 +1,5 @@
 using HybridDecisionIntelligence.Domain.Entities;
+using HybridDecisionIntelligence.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 
 namespace HybridDecisionIntelligence.Infrastructure.Data
@@ -17,6 +18,10 @@ namespace HybridDecisionIntelligence.Infrastructure.Data
         public DbSet<MLPredictionResult> MLPredictionResults { get; set; }
         public DbSet<BusinessRule> BusinessRules { get; set; }
         public DbSet<HybridDecision> HybridDecisions { get; set; }
+
+        // Seed data must be deterministic: HasData with DateTime.UtcNow produces a
+        // different model on every build.
+        private static readonly DateTime SeedDate = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -55,6 +60,10 @@ namespace HybridDecisionIntelligence.Infrastructure.Data
                 entity.Property(e => e.Probability).IsRequired();
                 entity.HasIndex(e => e.CustomerId);
                 entity.HasIndex(e => e.CreatedAt);
+                entity.HasOne<BankCustomer>()
+                    .WithMany()
+                    .HasForeignKey(e => e.CustomerId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             // BusinessRule configuration
@@ -85,6 +94,18 @@ namespace HybridDecisionIntelligence.Infrastructure.Data
                 entity.HasIndex(e => new { e.CustomerId, e.CreatedAt });
                 entity.HasIndex(e => e.FinalDecision);
                 entity.HasIndex(e => e.CreatedAt);
+
+                // Referential integrity: a decision must reference an existing customer
+                // and exactly one ML prediction (each prediction backs at most one decision).
+                // Restrict: audit records are never cascade-deleted.
+                entity.HasOne<BankCustomer>()
+                    .WithMany()
+                    .HasForeignKey(e => e.CustomerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne<MLPredictionResult>()
+                    .WithOne()
+                    .HasForeignKey<HybridDecision>(e => e.MLPredictionResultId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             // Seed default business rules
@@ -105,7 +126,8 @@ namespace HybridDecisionIntelligence.Infrastructure.Data
                     MaxAge = 100,
                     MaxInterestRate = 0.12m,
                     MinInterestRate = 0.02m,
-                    IsActive = true
+                    IsActive = true,
+                    CreatedAt = SeedDate
                 },
                 new BusinessRule
                 {
@@ -117,7 +139,8 @@ namespace HybridDecisionIntelligence.Infrastructure.Data
                     MaxAge = 70,
                     MaxInterestRate = 0.12m,
                     MinInterestRate = 0.02m,
-                    IsActive = true
+                    IsActive = true,
+                    CreatedAt = SeedDate
                 },
                 new BusinessRule
                 {
@@ -129,37 +152,38 @@ namespace HybridDecisionIntelligence.Infrastructure.Data
                     MaxAge = 100,
                     MaxInterestRate = 0.12m,
                     MinInterestRate = 0.02m,
-                    IsActive = true
+                    IsActive = true,
+                    CreatedAt = SeedDate
                 }
             );
         }
 
         private static void SeedSampleDecisionData(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<BankCustomer>().HasData(
-                new BankCustomer
-                {
-                    Id = 1,
-                    Age = 38,
-                    Job = "technician",
-                    Marital = "married",
-                    Education = "tertiary",
-                    Default = "no",
-                    Balance = 32000m,
-                    Housing = "yes",
-                    Loan = "no",
-                    Contact = "cellular",
-                    Day = 12,
-                    Month = "may",
-                    Duration = 210,
-                    Campaign = 2,
-                    PDays = 999,
-                    Previous = 0,
-                    POutcome = "unknown",
-                    SubscribedToTerm = false,
-                    CreatedAt = DateTime.UtcNow
-                }
-            );
+            var sampleCustomer = new BankCustomer
+            {
+                Id = 1,
+                Age = 38,
+                Job = "technician",
+                Marital = "married",
+                Education = "tertiary",
+                Default = "no",
+                Balance = 32000m,
+                Housing = "yes",
+                Loan = "no",
+                Contact = "cellular",
+                Day = 12,
+                Month = "may",
+                Duration = 210,
+                Campaign = 2,
+                PDays = 999,
+                Previous = 0,
+                POutcome = "unknown",
+                SubscribedToTerm = false,
+                CreatedAt = SeedDate
+            };
+
+            modelBuilder.Entity<BankCustomer>().HasData(sampleCustomer);
 
             modelBuilder.Entity<MLPredictionResult>().HasData(
                 new MLPredictionResult
@@ -169,7 +193,7 @@ namespace HybridDecisionIntelligence.Infrastructure.Data
                     PredictedLabel = true,
                     Score = 0.82f,
                     Probability = 0.82f,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = SeedDate
                 }
             );
 
@@ -185,9 +209,10 @@ namespace HybridDecisionIntelligence.Infrastructure.Data
                     AuditTrail = "ML predicted APPROVE with 82% confidence | Business rules passed | Final decision approved",
                     ApprovedInterestRate = 0.045m,
                     RulesApplied = "Minimum Balance Rule, Age Eligibility Rule",
-                    CreatedAt = DateTime.UtcNow,
+                    CreatedAt = SeedDate,
                     WasOverridden = false,
-                    OverrideReason = string.Empty
+                    OverrideReason = string.Empty,
+                    CustomerSnapshotJson = CustomerSnapshot.Serialize(sampleCustomer)
                 }
             );
         }

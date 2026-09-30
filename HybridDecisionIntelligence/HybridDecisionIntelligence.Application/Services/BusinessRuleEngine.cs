@@ -19,6 +19,13 @@ namespace HybridDecisionIntelligence.Application.Services
         public string RiskLevel { get; set; } = "Unknown"; // Low, Medium, High
         public List<string> AppliedRules { get; set; } = new();
         public List<string> FailedRules { get; set; } = new();
+
+        /// <summary>
+        /// Interest-rate corridor allowed by the active rules (strictest bounds across
+        /// all of them). Without active rules the corridor is unbounded.
+        /// </summary>
+        public decimal MinInterestRate { get; set; } = 0m;
+        public decimal MaxInterestRate { get; set; } = decimal.MaxValue;
     }
 
     public class BusinessRuleEngine : IBusinessRuleEngine
@@ -55,6 +62,13 @@ namespace HybridDecisionIntelligence.Application.Services
             
             // Overall approval: all rules must pass
             result.IsApproved = result.FailedRules.Count == 0;
+
+            // Interest-rate corridor: the strictest bounds of the active rules
+            if (rules.Count > 0)
+            {
+                result.MinInterestRate = rules.Max(r => r.MinInterestRate);
+                result.MaxInterestRate = rules.Min(r => r.MaxInterestRate);
+            }
             result.RiskLevel = DetermineRiskLevel(customer, result);
             
             _logger.LogInformation($"Rule evaluation complete. Approved: {result.IsApproved}, Risk: {result.RiskLevel}");

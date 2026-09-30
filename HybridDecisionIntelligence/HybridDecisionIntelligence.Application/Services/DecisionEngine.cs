@@ -15,20 +15,31 @@ namespace HybridDecisionIntelligence.Application.Services
         Task SaveDecisionAsync(HybridDecision decision);
     }
 
+    /// <summary>
+    /// Runs every decision as an explicit Thought–Action–Observation cycle:
+    ///   Thought     – the ML model's hypothesis (predicted label + probability)
+    ///   Action      – deterministic business rules, risk level, offer pricing on the
+    ///                 macro-economic reference rate, and the interest-rate policy rule
+    ///   Observation – the final decision, any override and its reason
+    /// Each audit-trail entry is tagged with its phase ([Thought]/[Action]/[Observation]).
+    /// </summary>
     public class DecisionEngine : IDecisionEngine
     {
         private readonly IBusinessRuleEngine _ruleEngine;
         private readonly IDecisionRepository _repository;
         private readonly ILogger<DecisionEngine> _logger;
+        private readonly DecisionPolicyOptions _policy;
 
         public DecisionEngine(
             IBusinessRuleEngine ruleEngine,
             IDecisionRepository repository,
-            ILogger<DecisionEngine> logger)
+            ILogger<DecisionEngine> logger,
+            DecisionPolicyOptions? policy = null)
         {
             _ruleEngine = ruleEngine;
             _repository = repository;
             _logger = logger;
+            _policy = policy ?? new DecisionPolicyOptions();
         }
 
         /// <summary>
@@ -38,38 +49,49 @@ namespace HybridDecisionIntelligence.Application.Services
         public async Task<HybridDecision> MakeDecisionAsync(BankCustomer customer, MLPredictionResult mlResult)
         {
             _logger.LogInformation($"Starting hybrid decision for customer {customer.Id}");
-            
+
             var auditTrail = new List<string>();
-            var appliedRules = new List<string>();
-            
-            // Step 1: ML Prediction
+            void Thought(string entry) => auditTrail.Add($"[Thought] {entry}");
+            void Action(string entry) => auditTrail.Add($"[Action] {entry}");
+            void Observation(string entry) => auditTrail.Add($"[Observation] {entry}");
+
+            // THOUGHT: the model's hypothesis
             bool mlDecision = mlResult.PredictedLabel;
             float mlConfidence = mlResult.Probability;
-            auditTrail.Add($"ML Prediction: {(mlDecision ? "APPROVE" : "REJECT")} (Confidence: {mlConfidence:P2})");
-            
-            // Step 2: Apply Business Rules
+            Thought($"ML Prediction: {(mlDecision ? "APPROVE" : "REJECT")} (Confidence: {mlConfidence:P2})");
+
+            // ACTION 1: deterministic business rules (stored in the database)
             var ruleResult = await _ruleEngine.EvaluateAsync(customer);
-            auditTrail.Add($"Business Rules Evaluation: {(ruleResult.IsApproved ? "PASS" : "FAIL")}");
-            
-            // Step 3: Combine Results (Hybrid Logic)
-            bool finalDecision = mlDecision && ruleResult.IsApproved;
+            Action($"Business Rules Evaluation: {(ruleResult.IsApproved ? "PASS" : "FAIL")} (Risk: {ruleResult.RiskLevel})");
+
+            // ACTION 2: price the offer on the macro-economic reference rate
+            var interestRate = CalculateInterestRate(customer, mlConfidence, ruleResult.RiskLevel);
+            Action($"Interest Rate Calculated: {interestRate:P2} (reference {_policy.ReferenceRate:P2} + spread {interestRate - _policy.ReferenceRate:P2})");
+
+            // ACTION 3: dynamic rule - the offer must stay inside the rules' rate corridor
+            var ratePolicyFailure = EvaluateRatePolicy(interestRate, ruleResult);
+            Action(ratePolicyFailure == null
+                ? $"Interest Rate Policy: PASS ({FormatCorridor(ruleResult)})"
+                : $"Interest Rate Policy: FAIL - {ratePolicyFailure}");
+
+            // OBSERVATION: combine and record
+            var failures = new List<string>(ruleResult.FailedRules);
+            if (ratePolicyFailure != null) failures.Add("Interest Rate Policy");
+
+            bool finalDecision = mlDecision && failures.Count == 0;
             var wasOverridden = mlDecision != finalDecision;
-            
+
             if (wasOverridden)
             {
-                auditTrail.Add($"OVERRIDE APPLIED: ML predicted {(mlDecision ? "APPROVE" : "REJECT")}, but rules require {(finalDecision ? "APPROVE" : "REJECT")}");
-                auditTrail.Add($"Override Reason: {string.Join(", ", ruleResult.FailedRules)}");
+                Observation("OVERRIDE APPLIED: ML predicted APPROVE, but rules require REJECT");
+                Observation($"Override Reason: {string.Join(", ", failures)}");
             }
             else
             {
-                auditTrail.Add("ML prediction and business rules are aligned");
+                Observation("ML prediction and business rules are aligned");
             }
-            
-            // Step 4: Calculate Interest Rate
-            var interestRate = CalculateInterestRate(customer, mlConfidence, ruleResult.RiskLevel);
-            auditTrail.Add($"Interest Rate Calculated: {interestRate:P2}");
-            
-            // Step 5: Create Decision Record with XAI Trail
+            Observation($"Final Decision: {(finalDecision ? "APPROVED" : "REJECTED")}");
+
             var decision = new HybridDecision
             {
                 CustomerId = customer.Id,
@@ -78,15 +100,15 @@ namespace HybridDecisionIntelligence.Application.Services
                 MLConfidence = mlConfidence,
                 FinalDecision = finalDecision,
                 WasOverridden = wasOverridden,
-                OverrideReason = wasOverridden ? string.Join("; ", ruleResult.FailedRules) : string.Empty,
+                OverrideReason = wasOverridden ? string.Join("; ", failures) : string.Empty,
                 ApprovedInterestRate = interestRate,
                 AuditTrail = string.Join(" | ", auditTrail),
                 RulesApplied = string.Join(", ", ruleResult.AppliedRules),
                 CreatedAt = DateTime.UtcNow
             };
-            
+
             _logger.LogInformation($"Decision made for customer {customer.Id}: {decision.FinalDecision}, Override: {decision.WasOverridden}");
-            
+
             return decision;
         }
 
@@ -100,14 +122,36 @@ namespace HybridDecisionIntelligence.Application.Services
             await _repository.SaveDecisionAsync(decision);
         }
 
+        /// <summary>
+        /// Returns why the offered rate breaks the rules' corridor, or null if it is inside.
+        /// Too high: the offer is not competitive / too costly for the customer.
+        /// Too low: the offer does not cover the bank's funding cost.
+        /// </summary>
+        private static string? EvaluateRatePolicy(decimal rate, BusinessRuleResult rules)
+        {
+            if (rate > rules.MaxInterestRate)
+                return $"offered rate {rate:P2} is above the policy maximum {rules.MaxInterestRate:P2}";
+            if (rate < rules.MinInterestRate)
+                return $"offered rate {rate:P2} is below the policy minimum {rules.MinInterestRate:P2}";
+            return null;
+        }
+
+        private static string FormatCorridor(BusinessRuleResult rules) =>
+            rules.MaxInterestRate == decimal.MaxValue
+                ? "no rate corridor configured"
+                : $"within {rules.MinInterestRate:P2}–{rules.MaxInterestRate:P2}";
+
+        /// <summary>
+        /// Offered rate = reference rate + spread. The spread grows with model
+        /// uncertainty and risk and shrinks for high balances and mature customers.
+        /// It is not clamped: an offer outside the policy corridor is rejected by the
+        /// interest-rate policy rule instead of being silently adjusted.
+        /// </summary>
         private decimal CalculateInterestRate(BankCustomer customer, float mlConfidence, string riskLevel)
         {
-            // Base rate: 4%
-            decimal baseRate = 0.04m;
-            
             // Confidence adjustment: Higher confidence = lower rate
             decimal confidenceAdjustment = (1 - (decimal)mlConfidence) * 0.02m;
-            
+
             // Risk level adjustment
             decimal riskAdjustment = riskLevel switch
             {
@@ -116,7 +160,7 @@ namespace HybridDecisionIntelligence.Application.Services
                 "High" => 0.03m,
                 _ => 0.02m
             };
-            
+
             // Balance adjustment: Higher balance = lower rate
             decimal balanceAdjustment = customer.Balance switch
             {
@@ -124,7 +168,7 @@ namespace HybridDecisionIntelligence.Application.Services
                 > 10000 => -0.002m,
                 _ => 0.0m
             };
-            
+
             // Age adjustment: Mature customers get slightly better rates
             decimal ageAdjustment = customer.Age switch
             {
@@ -132,11 +176,10 @@ namespace HybridDecisionIntelligence.Application.Services
                 > 45 => -0.002m,
                 _ => 0.0m
             };
-            
-            var finalRate = baseRate + confidenceAdjustment + riskAdjustment + balanceAdjustment + ageAdjustment;
-            
-            // Clamp rate between 2% and 12%
-            return Math.Max(0.02m, Math.Min(0.12m, finalRate));
+
+            // 4 decimals = the precision the rate is stored with (decimal(5,4))
+            return Math.Round(
+                _policy.ReferenceRate + confidenceAdjustment + riskAdjustment + balanceAdjustment + ageAdjustment, 4);
         }
     }
 }

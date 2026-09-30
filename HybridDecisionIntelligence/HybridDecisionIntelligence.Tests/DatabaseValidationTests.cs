@@ -48,7 +48,7 @@ namespace HybridDecisionIntelligence.Tests
             var decision = new HybridDecision
             {
                 CustomerId = customerId,
-                MLPredictionResultId = 1,
+                MLPredictionResultId = 100, // Id 1 belongs to the seeded sample decision
                 MLPredicted = true,
                 MLConfidence = 0.85f,
                 FinalDecision = false,
@@ -61,11 +61,11 @@ namespace HybridDecisionIntelligence.Tests
             };
 
             // Act
-            _context.HybridDecisions.Add(decision);
+            AddDecisionWithParents(decision);
             var result = _context.SaveChanges();
 
             // Assert
-            result.Should().Be(1, "One record should be inserted");
+            result.Should().Be(3, "the decision plus its parent customer and prediction rows should be inserted");
             
             var retrievedDecision = _context.HybridDecisions
                 .FirstOrDefault(d => d.CustomerId == customerId);
@@ -107,7 +107,7 @@ namespace HybridDecisionIntelligence.Tests
             };
 
             // Act
-            _context.HybridDecisions.Add(decision);
+            AddDecisionWithParents(decision);
             _context.SaveChanges();
 
             var retrieved = _context.HybridDecisions.First(d => d.CustomerId == 2);
@@ -153,8 +153,8 @@ namespace HybridDecisionIntelligence.Tests
             };
 
             // Act
-            _context.HybridDecisions.Add(decision1);
-            _context.HybridDecisions.Add(decision2);
+            AddDecisionWithParents(decision1);
+            AddDecisionWithParents(decision2);
             _context.SaveChanges();
 
             var decisions = _context.HybridDecisions
@@ -191,7 +191,7 @@ namespace HybridDecisionIntelligence.Tests
             };
 
             // Act
-            _context.HybridDecisions.Add(decision);
+            AddDecisionWithParents(decision);
             _context.SaveChanges();
 
             var retrieved = _context.HybridDecisions.First(d => d.CustomerId == 4);
@@ -224,7 +224,7 @@ namespace HybridDecisionIntelligence.Tests
                     AuditTrail = $"Interest rate: {rate:P2}",
                     CreatedAt = DateTime.UtcNow
                 };
-                _context.HybridDecisions.Add(decision);
+                AddDecisionWithParents(decision);
             }
             _context.SaveChanges();
 
@@ -262,7 +262,7 @@ namespace HybridDecisionIntelligence.Tests
             };
 
             // Act
-            _context.HybridDecisions.Add(decision);
+            AddDecisionWithParents(decision);
             _context.SaveChanges();
             var afterSave = DateTime.UtcNow;
 
@@ -298,7 +298,7 @@ namespace HybridDecisionIntelligence.Tests
             };
 
             // Act
-            _context.HybridDecisions.Add(decision);
+            AddDecisionWithParents(decision);
             _context.SaveChanges();
 
             var retrieved = _context.HybridDecisions.First(d => d.CustomerId == 7);
@@ -329,7 +329,7 @@ namespace HybridDecisionIntelligence.Tests
                     ApprovedInterestRate = 0.04m,
                     CreatedAt = DateTime.UtcNow.AddMinutes(i)
                 };
-                _context.HybridDecisions.Add(decision);
+                AddDecisionWithParents(decision);
             }
             _context.SaveChanges();
 
@@ -344,6 +344,31 @@ namespace HybridDecisionIntelligence.Tests
             history[0].AuditTrail.Should().Contain("Decision 3");
             history[1].AuditTrail.Should().Contain("Decision 2");
             history[2].AuditTrail.Should().Contain("Decision 1");
+        }
+
+        /// <summary>
+        /// Decisions have foreign keys to BankCustomers and MLPredictionResults, so
+        /// every test decision needs its parent customer and prediction rows.
+        /// </summary>
+        private void AddDecisionWithParents(HybridDecision decision)
+        {
+            if (_context.BankCustomers.Find(decision.CustomerId) == null)
+            {
+                _context.BankCustomers.Add(new BankCustomer { Id = decision.CustomerId, Age = 40 });
+            }
+
+            if (_context.MLPredictionResults.Find(decision.MLPredictionResultId) == null)
+            {
+                _context.MLPredictionResults.Add(new MLPredictionResult
+                {
+                    Id = decision.MLPredictionResultId,
+                    CustomerId = decision.CustomerId,
+                    PredictedLabel = decision.MLPredicted,
+                    Probability = decision.MLConfidence
+                });
+            }
+
+            _context.HybridDecisions.Add(decision);
         }
 
         public void Dispose()

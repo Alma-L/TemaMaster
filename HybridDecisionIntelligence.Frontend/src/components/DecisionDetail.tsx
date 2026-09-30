@@ -1,19 +1,21 @@
-import { useEffect, useState, type FC } from 'react';
+import { useEffect, useState, type FC, type ReactNode } from 'react';
 import {
-  X,
-  Lightbulb,
-  Zap,
+  Brain,
+  Scale,
+  BadgeCheck,
   CheckCircle2,
   AlertCircle,
   Clock,
-  Layers,
   HelpCircle,
-  ChevronDown,
   UserCircle2,
   FileDown,
+  Copy,
+  Check,
+  Loader2,
+  type LucideIcon,
 } from 'lucide-react';
 import { apiFetch, API_BASE_URL } from '../api/apiClient';
-import { BankCustomer } from '../types';
+import { BankCustomer, DecisionRecord } from '../types';
 import {
   JOBS,
   MARITAL_OPTIONS,
@@ -24,21 +26,23 @@ import {
   POUTCOME_OPTIONS,
   labelFor,
 } from '../utils/bankLabels';
-
-interface DecisionRecord {
-  id: number;
-  customerId: number;
-  mlPredictionResultId: number;
-  mlPredicted: boolean;
-  mlConfidence: number;
-  finalDecision: boolean;
-  auditTrail: string;
-  approvedInterestRate: number;
-  rulesApplied: string;
-  createdAt: string;
-  wasOverridden: boolean;
-  overrideReason: string;
-}
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from 'src/components/ui/accordion';
+import { Badge } from 'src/components/ui/badge';
+import { Button } from 'src/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from 'src/components/ui/dialog';
+import { cn } from 'src/lib/utils';
 
 interface DecisionDetailProps {
   decision: DecisionRecord;
@@ -66,11 +70,66 @@ const buildPlainSummary = (decision: DecisionRecord): string => {
   }`;
 };
 
+/**
+ * Splits the audit trail into its entries. New decisions tag each entry with its
+ * TAO phase ("[Thought] …", "[Action] …", "[Observation] …"); older ones don't, so
+ * the tag is optional when matching.
+ */
+const parseAuditTrail = (auditTrail: string) => {
+  const lines = auditTrail.split('|').map(l => l.trim().replace(/^\[(Thought|Action|Observation)\]\s*/, ''));
+  return {
+    mlPrediction: lines.find(l => l.startsWith('ML Prediction')) || '',
+    businessRules: lines.find(l => l.startsWith('Business Rules')) || '',
+    override: lines.find(l => l.startsWith('OVERRIDE')) || '',
+    interestRate: lines.find(l => l.startsWith('Interest Rate Calculated')) || '',
+    ratePolicy: lines.find(l => l.startsWith('Interest Rate Policy')) || '',
+  };
+};
+
 const ProfileField: FC<{ label: string; value: string }> = ({ label, value }) => (
   <div>
     <p className="text-[11px] text-slate-400 uppercase tracking-wide">{label}</p>
     <p className="text-sm text-navy-900 font-medium mt-0.5">{value}</p>
   </div>
+);
+
+/** Kutia e bardhë brenda një hapi TAO */
+const InfoBlock: FC<{ title: string; children: ReactNode; className?: string }> = ({
+  title,
+  children,
+  className,
+}) => (
+  <div className={cn('bg-white p-4 rounded-lg border', className)}>
+    <p className="text-sm text-muted-foreground font-medium mb-2">{title}</p>
+    {children}
+  </div>
+);
+
+const TechnicalNote: FC<{ title: string; children: ReactNode; mono?: boolean }> = ({ title, children, mono }) => (
+  <div className="text-xs text-muted-foreground bg-white p-3 rounded-lg border">
+    <p className="font-medium text-slate-600 mb-1">{title}</p>
+    <p className={cn(mono && 'whitespace-pre-wrap font-mono text-slate-600')}>{children}</p>
+  </div>
+);
+
+/** Titulli i një hapi Mendim / Veprim / Observim */
+const StepTrigger: FC<{ icon: LucideIcon; tone: string; title: string; subtitle: string }> = ({
+  icon: Icon,
+  tone,
+  title,
+  subtitle,
+}) => (
+  <AccordionTrigger className="px-4 py-3.5 hover:no-underline hover:bg-slate-50">
+    <div className="flex items-center gap-3">
+      <div className={cn('w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0', tone)}>
+        <Icon className="w-4 h-4" />
+      </div>
+      <div className="text-left">
+        <h3 className="font-semibold text-navy-900 text-sm">{title}</h3>
+        <p className="text-xs text-muted-foreground font-normal">{subtitle}</p>
+      </div>
+    </div>
+  </AccordionTrigger>
 );
 
 /**
@@ -80,20 +139,18 @@ const ProfileField: FC<{ label: string; value: string }> = ({ label, value }) =>
  * Djathtas: çfarë ndodhi me kërkesën e tij (vendimi dhe pse u mor).
  * Poshtë: cikli Mendim-Veprim-Observim (Thought-Action-Observation) teknik.
  */
-export const DecisionDetail: FC<DecisionDetailProps> = ({
-  decision,
-  onClose,
-}: DecisionDetailProps) => {
-  const [expandedSection, setExpandedSection] = useState<string | null>('thought');
+export const DecisionDetail: FC<DecisionDetailProps> = ({ decision, onClose }) => {
   const [customer, setCustomer] = useState<BankCustomer | null>(null);
   const [customerLoading, setCustomerLoading] = useState(true);
   const [customerMissing, setCustomerMissing] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setCustomerLoading(true);
     setCustomerMissing(false);
-    apiFetch<BankCustomer>(`v1/customers/${decision.customerId}`, { method: 'GET' })
+    // Profile as it was when this decision was made (snapshot), not the latest one
+    apiFetch<BankCustomer>(`v1/decisions/${decision.id}/customer`, { method: 'GET' })
       .then(data => {
         if (!cancelled) setCustomer(data);
       })
@@ -106,49 +163,32 @@ export const DecisionDetail: FC<DecisionDetailProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [decision.customerId]);
-
-  const parseAuditTrail = (auditTrail: string) => {
-    const lines = auditTrail.split('|').map(l => l.trim());
-    return {
-      mlPrediction: lines.find(l => l.startsWith('ML Prediction')) || '',
-      businessRules: lines.find(l => l.startsWith('Business Rules')) || '',
-      override: lines.find(l => l.startsWith('OVERRIDE')) || '',
-      interestRate: lines.find(l => l.startsWith('Interest Rate')) || '',
-    };
-  };
+  }, [decision.id]);
 
   const auditComponents = parseAuditTrail(decision.auditTrail);
   const plainSummary = buildPlainSummary(decision);
+  const decisionTime = new Date(decision.createdAt).toLocaleString('sq-AL');
 
-  const toggleSection = (section: string) => {
-    setExpandedSection(expandedSection === section ? null : section);
+  const copyAuditTrail = async () => {
+    const text = `Vendimi #${decision.id}\n\n${plainSummary}\n\nGjurma teknike:\n${decision.auditTrail}`;
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="fixed inset-0 bg-navy-950 bg-opacity-40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <Dialog open onOpenChange={open => !open && onClose()}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 gap-0">
         {/* Header */}
-        <div className="sticky top-0 bg-navy-900 px-6 py-5 flex items-center justify-between z-10">
-          <div className="flex items-center gap-3">
-            <Layers className="w-5 h-5 text-navy-300" />
-            <div>
-              <h2 className="text-lg font-semibold text-white">Analiza e Vendimit</h2>
-              <p className="text-navy-300 text-sm">
-                Klienti #{decision.customerId} • {new Date(decision.createdAt).toLocaleString('sq-AL')}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-navy-300 hover:text-white hover:bg-white hover:bg-opacity-10 p-2 rounded-lg transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        <DialogHeader className="px-6 py-5 border-b text-left">
+          <DialogTitle className="text-lg text-navy-900">Analiza e Vendimit</DialogTitle>
+          <DialogDescription>
+            Klienti #{decision.customerId} • {decisionTime}
+          </DialogDescription>
+        </DialogHeader>
 
         {/* Profili i klientit (majtas) + Vendimi (djathtas) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200 border-b border-slate-200">
+        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x border-b">
           {/* Profili i Klientit */}
           <div className="px-6 py-5">
             <div className="flex items-center gap-2 mb-4">
@@ -158,7 +198,7 @@ export const DecisionDetail: FC<DecisionDetailProps> = ({
 
             {customerLoading ? (
               <div className="flex items-center gap-2 text-sm text-slate-400">
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-slate-200 border-t-navy-600"></div>
+                <Loader2 className="h-4 w-4 animate-spin text-navy-600" />
                 Duke ngarkuar profilin...
               </div>
             ) : customerMissing || !customer ? (
@@ -182,10 +222,7 @@ export const DecisionDetail: FC<DecisionDetailProps> = ({
                   value={`${customer.day} ${labelFor(MONTH_OPTIONS, customer.month)}`}
                 />
                 <ProfileField label="Kontakte në Fushatë" value={`${customer.campaign}`} />
-                <ProfileField
-                  label="Fushata e Mëparshme"
-                  value={labelFor(POUTCOME_OPTIONS, customer.pOutcome)}
-                />
+                <ProfileField label="Fushata e Mëparshme" value={labelFor(POUTCOME_OPTIONS, customer.pOutcome)} />
               </div>
             )}
           </div>
@@ -194,34 +231,28 @@ export const DecisionDetail: FC<DecisionDetailProps> = ({
           <div className="px-6 py-5">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-sm text-slate-500 font-medium">Vendimi Final</p>
+                <p className="text-sm text-muted-foreground font-medium">Vendimi Final</p>
                 <p className="text-xl font-bold text-navy-900 mt-1">
                   {decision.finalDecision ? 'Miratuar' : 'Refuzuar'}
                 </p>
               </div>
-              <div className="text-right">
-                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold ${
-                  decision.finalDecision
-                    ? 'bg-success-50 text-success-700'
-                    : 'bg-danger-50 text-danger-700'
-                }`}>
+              <div className="flex flex-col items-end gap-2">
+                <Badge
+                  variant={decision.finalDecision ? 'success' : 'danger'}
+                  className="gap-2 px-3 py-1.5 text-sm border-transparent"
+                >
                   {decision.finalDecision ? (
-                    <>
-                      <CheckCircle2 className="w-4 h-4" />
-                      MIRATUAR
-                    </>
+                    <CheckCircle2 className="w-4 h-4" />
                   ) : (
-                    <>
-                      <AlertCircle className="w-4 h-4" />
-                      REFUZUAR
-                    </>
+                    <AlertCircle className="w-4 h-4" />
                   )}
-                </div>
+                  {decision.finalDecision ? 'MIRATUAR' : 'REFUZUAR'}
+                </Badge>
                 {decision.wasOverridden && (
-                  <div className="mt-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-warning-100 text-warning-700">
+                  <Badge variant="warning" className="gap-1 border-transparent bg-warning-100">
                     <AlertCircle className="w-3 h-3" />
                     Anuluar nga Rregullat
-                  </div>
+                  </Badge>
                 )}
               </div>
             </div>
@@ -243,103 +274,78 @@ export const DecisionDetail: FC<DecisionDetailProps> = ({
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
             Detajet teknike (procesi hap pas hapi)
           </p>
-          {/* THOUGHT Section */}
-          <div className="border border-slate-200 rounded-lg overflow-hidden">
-            <button
-              onClick={() => toggleSection('thought')}
-              className="w-full px-4 py-3.5 bg-white hover:bg-slate-50 transition flex items-center justify-between"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-md bg-navy-50 flex items-center justify-center flex-shrink-0">
-                  <Lightbulb className="w-4 h-4 text-navy-600" />
-                </div>
-                <div className="text-left">
-                  <h3 className="font-semibold text-navy-900 text-sm">Mendimi (AI)</h3>
-                  <p className="text-xs text-slate-500">Analiza e Parashikimit të Modelit ML.NET</p>
-                </div>
-              </div>
-              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${expandedSection === 'thought' ? 'rotate-180' : ''}`} />
-            </button>
-            {expandedSection === 'thought' && (
-              <div className="px-4 py-4 bg-slate-50 border-t border-slate-200 space-y-3">
-                <div className="bg-white p-4 rounded-lg border border-slate-200">
-                  <p className="text-sm text-slate-500 font-medium mb-2">Parashikimi i AI-së</p>
-                  <p className="text-lg font-bold text-navy-800">
-                    {decision.mlPredicted ? 'MIRATO' : 'REFUZO'}
-                  </p>
+
+          <Accordion type="single" collapsible defaultValue="thought" className="space-y-3">
+            {/* THOUGHT */}
+            <AccordionItem value="thought" className="border rounded-lg overflow-hidden">
+              <StepTrigger
+                icon={Brain}
+                tone="bg-navy-50 text-navy-600"
+                title="Mendimi (AI)"
+                subtitle="Analiza e Parashikimit të Modelit ML.NET"
+              />
+              <AccordionContent className="px-4 py-4 bg-slate-50 border-t space-y-3">
+                <InfoBlock title="Parashikimi i AI-së">
+                  <p className="text-lg font-bold text-navy-800">{decision.mlPredicted ? 'MIRATO' : 'REFUZO'}</p>
                   <p className="text-xs text-slate-400 mt-1">
                     Bazuar në modelin e klasifikimit binar të ML.NET, i trajnuar me të dhëna bankare reale
                   </p>
-                </div>
+                </InfoBlock>
 
-                <div className="bg-white p-4 rounded-lg border border-slate-200">
-                  <p className="text-sm text-slate-500 font-medium mb-2">Niveli i Besueshmërisë</p>
+                <InfoBlock title="Niveli i Besueshmërisë">
                   <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <div className="w-full bg-slate-200 rounded-full h-2">
-                        <div
-                          className="bg-navy-600 h-2 rounded-full transition-all"
-                          style={{ width: `${decision.mlConfidence * 100}%` }}
-                        ></div>
-                      </div>
+                    <div className="flex-1 bg-slate-200 rounded-full h-2">
+                      <div
+                        className="bg-navy-600 h-2 rounded-full transition-all"
+                        style={{ width: `${decision.mlConfidence * 100}%` }}
+                      />
                     </div>
-                    <span className="font-bold text-navy-800 min-w-fit tabular-nums">
+                    <span className="font-bold text-navy-800 tabular-nums">
                       {(decision.mlConfidence * 100).toFixed(2)}%
                     </span>
                   </div>
-                </div>
+                </InfoBlock>
 
-                <div className="text-xs text-slate-500 bg-white p-3 rounded-lg border border-slate-200">
-                  <p className="font-medium text-slate-600 mb-1">Të dhëna teknike (nga sistemi)</p>
-                  <p>{auditComponents.mlPrediction || 'Komponenti i parashikimit të AI-së'}</p>
-                </div>
-              </div>
-            )}
-          </div>
+                <TechnicalNote title="Të dhëna teknike (nga sistemi)">
+                  {auditComponents.mlPrediction || 'Komponenti i parashikimit të AI-së'}
+                </TechnicalNote>
+              </AccordionContent>
+            </AccordionItem>
 
-          {/* ACTION Section */}
-          <div className="border border-slate-200 rounded-lg overflow-hidden">
-            <button
-              onClick={() => toggleSection('action')}
-              className="w-full px-4 py-3.5 bg-white hover:bg-slate-50 transition flex items-center justify-between"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-md bg-warning-50 flex items-center justify-center flex-shrink-0">
-                  <Zap className="w-4 h-4 text-warning-600" />
-                </div>
-                <div className="text-left">
-                  <h3 className="font-semibold text-navy-900 text-sm">Veprimi (Rregullat e Biznesit)</h3>
-                  <p className="text-xs text-slate-500">Përpunimi nga Motori i Rregullave</p>
-                </div>
-              </div>
-              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${expandedSection === 'action' ? 'rotate-180' : ''}`} />
-            </button>
-            {expandedSection === 'action' && (
-              <div className="px-4 py-4 bg-slate-50 border-t border-slate-200 space-y-3">
-                <div className="bg-white p-4 rounded-lg border border-slate-200">
-                  <p className="text-sm text-slate-500 font-medium mb-2">Vlerësimi i Rregullave të Biznesit</p>
+            {/* ACTION */}
+            <AccordionItem value="action" className="border rounded-lg overflow-hidden">
+              <StepTrigger
+                icon={Scale}
+                tone="bg-warning-50 text-warning-600"
+                title="Veprimi (Rregullat e Biznesit)"
+                subtitle="Përpunimi nga Motori i Rregullave"
+              />
+              <AccordionContent className="px-4 py-4 bg-slate-50 border-t space-y-3">
+                <InfoBlock title="Vlerësimi i Rregullave të Biznesit">
                   <p className="text-lg font-bold text-warning-700">
                     {auditComponents.businessRules.includes('PASS') ? 'KALUAR' : 'DËSHTUAR'}
                   </p>
                   <p className="text-xs text-slate-400 mt-1">
                     {auditComponents.businessRules || 'Vlerësimi i rregullave të biznesit'}
                   </p>
-                </div>
+                </InfoBlock>
 
-                <div className="bg-white p-4 rounded-lg border border-slate-200">
-                  <p className="text-sm text-slate-500 font-medium mb-3">Rregullat e Aplikuara</p>
+                <InfoBlock title="Rregullat e Aplikuara">
                   <div className="space-y-2">
-                    {decision.rulesApplied.split(',').filter(r => r.trim()).map((rule: string, idx: number) => (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-2 text-sm text-slate-700 bg-slate-50 px-3 py-2 rounded-md border border-slate-200"
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full bg-warning-600"></span>
-                        {rule.trim()}
-                      </div>
-                    ))}
+                    {decision.rulesApplied
+                      .split(',')
+                      .filter(r => r.trim())
+                      .map((rule, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-2 text-sm text-slate-700 bg-slate-50 px-3 py-2 rounded-md border"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-warning-600" />
+                          {rule.trim()}
+                        </div>
+                      ))}
                   </div>
-                </div>
+                </InfoBlock>
 
                 {decision.wasOverridden && (
                   <div className="bg-danger-50 p-4 rounded-lg border border-danger-200">
@@ -350,106 +356,89 @@ export const DecisionDetail: FC<DecisionDetailProps> = ({
                   </div>
                 )}
 
-                <div className="text-xs text-slate-500 bg-white p-3 rounded-lg border border-slate-200">
-                  <p className="font-medium text-slate-600 mb-1">Të dhëna teknike (nga sistemi)</p>
-                  <p>{auditComponents.override || 'Detajet e vlerësimit të rregullave'}</p>
-                </div>
-              </div>
-            )}
-          </div>
+                {auditComponents.ratePolicy && (
+                  <InfoBlock title="Politika e Normës së Interesit (rregull dinamik)">
+                    <p
+                      className={cn(
+                        'text-sm font-semibold',
+                        auditComponents.ratePolicy.includes('PASS') ? 'text-navy-800' : 'text-danger-700'
+                      )}
+                    >
+                      {auditComponents.ratePolicy.includes('PASS')
+                        ? 'Oferta është brenda kufijve të politikës'
+                        : 'Oferta del jashtë kufijve të politikës'}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1">{auditComponents.ratePolicy}</p>
+                  </InfoBlock>
+                )}
 
-          {/* OBSERVATION Section */}
-          <div className="border border-slate-200 rounded-lg overflow-hidden">
-            <button
-              onClick={() => toggleSection('observation')}
-              className="w-full px-4 py-3.5 bg-white hover:bg-slate-50 transition flex items-center justify-between"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-md bg-success-50 flex items-center justify-center flex-shrink-0">
-                  <CheckCircle2 className="w-4 h-4 text-success-600" />
-                </div>
-                <div className="text-left">
-                  <h3 className="font-semibold text-navy-900 text-sm">Observimi (Vendimi Final)</h3>
-                  <p className="text-xs text-slate-500">Verdikti Final dhe Regjistrimi</p>
-                </div>
-              </div>
-              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${expandedSection === 'observation' ? 'rotate-180' : ''}`} />
-            </button>
-            {expandedSection === 'observation' && (
-              <div className="px-4 py-4 bg-slate-50 border-t border-slate-200 space-y-3">
-                <div className="bg-white p-4 rounded-lg border border-slate-200">
-                  <p className="text-sm text-slate-500 font-medium mb-2">Vendimi Final</p>
+                <TechnicalNote title="Të dhëna teknike (nga sistemi)">
+                  {auditComponents.override || 'Detajet e vlerësimit të rregullave'}
+                </TechnicalNote>
+              </AccordionContent>
+            </AccordionItem>
+
+            {/* OBSERVATION */}
+            <AccordionItem value="observation" className="border rounded-lg overflow-hidden">
+              <StepTrigger
+                icon={BadgeCheck}
+                tone="bg-success-50 text-success-600"
+                title="Observimi (Vendimi Final)"
+                subtitle="Verdikti Final dhe Regjistrimi"
+              />
+              <AccordionContent className="px-4 py-4 bg-slate-50 border-t space-y-3">
+                <InfoBlock title="Vendimi Final">
                   <p className="text-lg font-bold text-success-700">
                     {decision.finalDecision ? 'VENDIMI: MIRATUAR' : 'VENDIMI: REFUZUAR'}
                   </p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Verdikti i kombinuar i AI-së dhe rregullave të biznesit
-                  </p>
-                </div>
+                  <p className="text-xs text-slate-400 mt-1">Verdikti i kombinuar i AI-së dhe rregullave të biznesit</p>
+                </InfoBlock>
 
                 {decision.approvedInterestRate > 0 && (
-                  <div className="bg-white p-4 rounded-lg border border-slate-200">
-                    <p className="text-sm text-slate-500 font-medium mb-2">Norma e Interesit e Miratuar</p>
+                  <InfoBlock title="Norma e Interesit e Miratuar">
                     <p className="text-3xl font-bold text-navy-800 tabular-nums">
                       {(decision.approvedInterestRate * 100).toFixed(3)}%
                     </p>
                     <p className="text-xs text-slate-400 mt-1">
                       {auditComponents.interestRate || 'Llogaritja e normës së interesit'}
                     </p>
-                  </div>
+                  </InfoBlock>
                 )}
 
-                <div className="bg-white p-4 rounded-lg border border-slate-200 flex items-center gap-3">
+                <div className="bg-white p-4 rounded-lg border flex items-center gap-3">
                   <Clock className="w-4 h-4 text-slate-400" />
                   <div>
-                    <p className="text-xs text-slate-500 font-medium">Koha e Vendimit</p>
-                    <p className="text-sm font-mono text-navy-800">
-                      {new Date(decision.createdAt).toLocaleString('sq-AL')}
-                    </p>
+                    <p className="text-xs text-muted-foreground font-medium">Koha e Vendimit</p>
+                    <p className="text-sm font-mono text-navy-800">{decisionTime}</p>
                   </div>
                 </div>
 
-                <div className="text-xs text-slate-500 bg-white p-3 rounded-lg border border-slate-200">
-                  <p className="font-medium text-slate-600 mb-2">Gjurma e Plotë e Auditimit (origjinale nga sistemi)</p>
-                  <p className="whitespace-pre-wrap font-mono text-slate-600">
-                    {decision.auditTrail}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
+                <TechnicalNote title="Gjurma e Plotë e Auditimit (origjinale nga sistemi)" mono>
+                  {decision.auditTrail}
+                </TechnicalNote>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 bg-white border-t border-slate-200 px-6 py-4 flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition text-sm font-medium"
-          >
+        <DialogFooter className="sticky bottom-0 bg-white border-t px-6 py-4 gap-2 sm:gap-2">
+          <Button variant="secondary" onClick={onClose}>
             Mbyll
-          </button>
-          <button
-            onClick={() => {
-              const text = `Vendimi #${decision.id}\n\n${plainSummary}\n\nGjurma teknike:\n${decision.auditTrail}`;
-              navigator.clipboard.writeText(text);
-              alert('Gjurma e auditimit u kopjua!');
-            }}
-            className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition text-sm font-medium"
-          >
-            Kopjo Gjurmën e Auditimit
-          </button>
-          <a
-            href={`${API_BASE_URL}/v1/decisions/${decision.id}/report`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2 bg-navy-700 text-white rounded-lg hover:bg-navy-800 transition text-sm font-medium flex items-center gap-2"
-          >
-            <FileDown className="w-4 h-4" />
-            Shkarko Raportin PDF
-          </a>
-        </div>
-      </div>
-    </div>
+          </Button>
+          <Button variant="secondary" onClick={copyAuditTrail}>
+            {copied ? <Check /> : <Copy />}
+            {copied ? 'U kopjua' : 'Kopjo Gjurmën e Auditimit'}
+          </Button>
+          <Button asChild>
+            <a href={`${API_BASE_URL}/v1/decisions/${decision.id}/report`} target="_blank" rel="noopener noreferrer">
+              <FileDown />
+              Shkarko Raportin PDF
+            </a>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

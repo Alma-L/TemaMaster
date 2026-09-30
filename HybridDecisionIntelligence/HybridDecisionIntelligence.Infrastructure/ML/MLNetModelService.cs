@@ -1,3 +1,4 @@
+using System.Text.Json;
 using HybridDecisionIntelligence.Application.Services;
 using HybridDecisionIntelligence.Domain.ValueObjects;
 using Microsoft.ML;
@@ -10,10 +11,13 @@ namespace HybridDecisionIntelligence.Infrastructure.ML
 {
     /// <summary>
     /// Concrete implementation using ML.NET
-    /// Binary classification model for banking decisions
+    /// Binary classification model for banking decisions.
+    /// Registered as a singleton so the model is loaded from disk once; PredictionEngine
+    /// is not thread-safe, so every use of it is serialized through _sync.
     /// </summary>
     public class MLNetModelService : IMLModelService
     {
+        private readonly object _sync = new();
         private readonly MLContext _mlContext;
         private readonly string _modelPath;
         private ITransformer? _trainedModel;
@@ -26,6 +30,9 @@ namespace HybridDecisionIntelligence.Infrastructure.ML
             _modelPath = configuration["MLModel:ModelPath"] ?? "Models/BankMarketingModel.zip";
             _logger = logger;
         }
+
+        private string MetricsPath =>
+            Path.ChangeExtension(_modelPath, ".metrics.json");
 
         private IDataView LoadData(string dataPath) =>
             _mlContext.Data.LoadFromTextFile<BankMarketingData>(
@@ -93,8 +100,33 @@ namespace HybridDecisionIntelligence.Infrastructure.ML
                     metrics.Accuracy, metrics.AreaUnderRocCurve, metrics.F1Score,
                     metrics.PositivePrecision, metrics.PositiveRecall);
 
+                // Persist metrics next to the model so thesis/results can cite a reproducible artifact
+                SaveMetrics(new ModelTrainingMetrics
+                {
+                    EvaluatedAtUtc = DateTime.UtcNow,
+                    DatasetPath = Path.GetFullPath(dataPath),
+                    ModelPath = Path.GetFullPath(_modelPath),
+                    TrainTestSplit = new TrainTestSplitInfo
+                    {
+                        TestFraction = 0.2,
+                        Seed = 0,
+                        Note = "MLContext(seed:0) and TrainTestSplit(seed:0); Duration excluded (UCI leakage)"
+                    },
+                    Accuracy = metrics.Accuracy,
+                    AreaUnderRocCurve = metrics.AreaUnderRocCurve,
+                    F1Score = metrics.F1Score,
+                    PositivePrecision = metrics.PositivePrecision,
+                    PositiveRecall = metrics.PositiveRecall,
+                    NegativePrecision = metrics.NegativePrecision,
+                    NegativeRecall = metrics.NegativeRecall,
+                    LogLoss = metrics.LogLoss
+                });
+
                 // Create prediction engine
-                _predictionEngine = _mlContext.Model.CreatePredictionEngine<BankMarketingData, BankMarketingPrediction>(_trainedModel);
+                lock (_sync)
+                {
+                    _predictionEngine = _mlContext.Model.CreatePredictionEngine<BankMarketingData, BankMarketingPrediction>(_trainedModel);
+                }
 
                 // Save model
                 SaveModel(_modelPath);
@@ -145,20 +177,24 @@ namespace HybridDecisionIntelligence.Infrastructure.ML
         {
             try
             {
-                if (_predictionEngine == null)
+                BankMarketingPrediction prediction;
+                lock (_sync)
                 {
-                    LoadModel(_modelPath);
+                    if (_predictionEngine == null)
+                    {
+                        LoadModel(_modelPath);
+                    }
+
+                    if (_predictionEngine == null)
+                    {
+                        throw new InvalidOperationException("Prediction engine is unavailable after model load.");
+                    }
+
+                    prediction = _predictionEngine.Predict(data);
                 }
 
-                if (_predictionEngine == null)
-                {
-                    throw new InvalidOperationException("Prediction engine is unavailable after model load.");
-                }
-                
-                var prediction = _predictionEngine!.Predict(data);
-                
-                _logger.LogInformation($"Prediction: {prediction.Prediction}, Probability: {prediction.Probability:P2}");
-                
+                _logger.LogDebug("Prediction: {Prediction}, Probability: {Probability:P2}", prediction.Prediction, prediction.Probability);
+
                 return prediction;
             }
             catch (Exception ex)
@@ -199,6 +235,55 @@ namespace HybridDecisionIntelligence.Infrastructure.ML
         }
 
         /// <summary>
+        /// Writes held-out evaluation metrics beside the model zip for thesis citation.
+        /// Path: Models/BankMarketingModel.metrics.json
+        /// </summary>
+        private void SaveMetrics(ModelTrainingMetrics metrics)
+        {
+            try
+            {
+                var directoryName = Path.GetDirectoryName(MetricsPath);
+                if (!string.IsNullOrWhiteSpace(directoryName))
+                    Directory.CreateDirectory(directoryName);
+
+                var json = JsonSerializer.Serialize(metrics, new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                });
+                File.WriteAllText(MetricsPath, json);
+                _logger.LogInformation("Training metrics saved to {MetricsPath}", Path.GetFullPath(MetricsPath));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save training metrics to {MetricsPath}", MetricsPath);
+                throw;
+            }
+        }
+
+        private sealed class ModelTrainingMetrics
+        {
+            public DateTime EvaluatedAtUtc { get; set; }
+            public string DatasetPath { get; set; } = "";
+            public string ModelPath { get; set; } = "";
+            public TrainTestSplitInfo TrainTestSplit { get; set; } = new();
+            public double Accuracy { get; set; }
+            public double AreaUnderRocCurve { get; set; }
+            public double F1Score { get; set; }
+            public double PositivePrecision { get; set; }
+            public double PositiveRecall { get; set; }
+            public double NegativePrecision { get; set; }
+            public double NegativeRecall { get; set; }
+            public double LogLoss { get; set; }
+        }
+
+        private sealed class TrainTestSplitInfo
+        {
+            public double TestFraction { get; set; }
+            public int Seed { get; set; }
+            public string Note { get; set; } = "";
+        }
+
+        /// <summary>
         /// Load trained model from file
         /// </summary>
         public void LoadModel(string path)
@@ -210,9 +295,11 @@ namespace HybridDecisionIntelligence.Infrastructure.ML
                     throw new FileNotFoundException($"Model file not found: {path}");
                 }
                 
-                DataViewSchema schema;
-                _trainedModel = _mlContext.Model.Load(path, out schema);
-                _predictionEngine = _mlContext.Model.CreatePredictionEngine<BankMarketingData, BankMarketingPrediction>(_trainedModel);
+                lock (_sync)
+                {
+                    _trainedModel = _mlContext.Model.Load(path, out _);
+                    _predictionEngine = _mlContext.Model.CreatePredictionEngine<BankMarketingData, BankMarketingPrediction>(_trainedModel);
+                }
                 
                 _logger.LogInformation($"Model loaded from {path}");
             }

@@ -83,7 +83,11 @@ namespace HybridDecisionIntelligence.Application.Services
             return _modelService.EvaluateModel(testDataPath);
         }
 
-        private BankMarketingData CustomerToMLData(BankCustomer customer)
+        /// <summary>
+        /// Maps a customer to the ML.NET input row. Shared with the dataset import
+        /// so bulk and single decisions feed the model identically.
+        /// </summary>
+        public static BankMarketingData CustomerToMLData(BankCustomer customer)
         {
             return new BankMarketingData
             {

@@ -74,3 +74,15 @@ export const POUTCOME_OPTIONS: LabelOption[] = [
 /** Look up the Albanian label for a raw category value; falls back to the raw value itself. */
 export const labelFor = (options: LabelOption[], value: string): string =>
   options.find(o => o.value.toLowerCase() === (value ?? '').toLowerCase())?.label ?? value;
+
+/**
+ * Albanian names for the business rules stored in the database. A rule added
+ * later with another name is still shown, using its original name.
+ */
+const RULE_NAMES: Record<string, string> = {
+  'Minimum Balance Rule': 'Bilanci Minimal',
+  'Age Eligibility Rule': 'Pranueshmëria sipas Moshës',
+  'No Default History': 'Historia e Pagesave',
+};
+
+export const ruleLabel = (name: string): string => RULE_NAMES[name] ?? name;

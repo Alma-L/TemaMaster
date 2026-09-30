@@ -48,5 +48,12 @@ namespace HybridDecisionIntelligence.Domain.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public bool WasOverridden { get; set; }
         public string OverrideReason { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Immutable JSON copy of the customer profile exactly as it was evaluated.
+        /// The BankCustomers row is overwritten on every new request for the same
+        /// customer, so audits and reports must read this snapshot instead.
+        /// </summary>
+        public string CustomerSnapshotJson { get; set; } = string.Empty;
     }
 }

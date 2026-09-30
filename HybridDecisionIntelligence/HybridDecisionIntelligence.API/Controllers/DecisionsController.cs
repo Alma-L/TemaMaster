@@ -2,6 +2,7 @@ using HybridDecisionIntelligence.Application.Requests;
 using HybridDecisionIntelligence.Application.Repositories;
 using HybridDecisionIntelligence.Application.Services;
 using HybridDecisionIntelligence.Domain.Entities;
+using HybridDecisionIntelligence.Domain.ValueObjects;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -107,20 +108,44 @@ namespace HybridDecisionIntelligence.API.Controllers
         /// </summary>
         /// <param name="page">Page number</param>
         /// <param name="pageSize">Number of results per page</param>
+        /// <param name="filter">Optional filters (customerId, finalDecision, wasOverridden,
+        /// min/maxProbability, min/maxInterestRate as fractions)</param>
         /// <returns>Paginated list of decisions</returns>
         [HttpGet]
         [ProducesResponseType(typeof(List<HybridDecision>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetDecisions([FromQuery] int page = 1, [FromQuery] int pageSize = 25)
+        public async Task<IActionResult> GetDecisions(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25,
+            [FromQuery] DecisionFilter? filter = null)
         {
             try
             {
                 _logger.LogInformation("Fetching paginated decision records");
-                var decisions = await _decisionRepository.GetDecisionsAsync(page, pageSize);
+                var decisions = await _decisionRepository.GetDecisionsAsync(page, pageSize, filter);
                 return Ok(decisions);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching decision records");
+                return StatusCode(500, new { error = "Internal server error" });
+            }
+        }
+
+        /// <summary>
+        /// Totals and rates over all stored decisions (optionally filtered),
+        /// so dashboard rates are not limited to one page
+        /// </summary>
+        [HttpGet("stats")]
+        [ProducesResponseType(typeof(DecisionStats), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetDecisionStats([FromQuery] DecisionFilter? filter = null)
+        {
+            try
+            {
+                return Ok(await _decisionRepository.GetDecisionStatsAsync(filter));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error computing decision stats");
                 return StatusCode(500, new { error = "Internal server error" });
             }
         }
@@ -134,6 +159,32 @@ namespace HybridDecisionIntelligence.API.Controllers
         public IActionResult Health()
         {
             return Ok(new { status = "Healthy", timestamp = DateTime.UtcNow });
+        }
+
+        /// <summary>
+        /// Get the customer profile exactly as it was when this decision was made
+        /// (the stored snapshot), not the customer's latest submitted data
+        /// </summary>
+        /// <param name="id">Decision ID</param>
+        [HttpGet("{id}/customer")]
+        [ProducesResponseType(typeof(BankCustomer), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetDecisionCustomer(int id)
+        {
+            HybridDecision decision;
+            try
+            {
+                decision = await _decisionRepository.GetDecisionByIdAsync(id);
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new { message = $"Decision with ID {id} not found" });
+            }
+
+            var customer = await GetEvaluatedCustomerAsync(decision);
+            return customer == null
+                ? NotFound(new { message = $"No stored profile for decision {id}" })
+                : Ok(customer);
         }
 
         /// <summary>
@@ -156,7 +207,7 @@ namespace HybridDecisionIntelligence.API.Controllers
                 return NotFound(new { message = $"Decision with ID {id} not found" });
             }
 
-            var customer = await _customerRepository.FindCustomerByIdAsync(decision.CustomerId);
+            var customer = await GetEvaluatedCustomerAsync(decision);
 
             try
             {
@@ -169,5 +220,13 @@ namespace HybridDecisionIntelligence.API.Controllers
                 return StatusCode(500, new { error = "Internal server error", details = ex.Message });
             }
         }
+
+        /// <summary>
+        /// The profile the decision was based on. Falls back to the current customer
+        /// row only for records that predate snapshots.
+        /// </summary>
+        private async Task<BankCustomer?> GetEvaluatedCustomerAsync(HybridDecision decision) =>
+            CustomerSnapshot.Deserialize(decision.CustomerSnapshotJson)
+            ?? await _customerRepository.FindCustomerByIdAsync(decision.CustomerId);
     }
 }

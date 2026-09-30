@@ -1,5 +1,5 @@
 import { useState, type FC, type FormEvent } from 'react';
-import { X, UserPlus, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { UserPlus, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { apiFetch } from '../api/apiClient';
 import { MakeDecisionRequest, MakeDecisionResponse } from '../types';
 import {
@@ -10,13 +10,66 @@ import {
   CONTACT_OPTIONS,
   MONTH_OPTIONS,
   POUTCOME_OPTIONS,
+  type LabelOption,
 } from '../utils/bankLabels';
+import { Button } from 'src/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from 'src/components/ui/dialog';
+import { Input } from 'src/components/ui/input';
+import { Label } from 'src/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from 'src/components/ui/select';
+import { cn } from 'src/lib/utils';
 
 interface NewDecisionFormProps {
   nextCustomerId: number;
   onClose: () => void;
   onCreated: () => void;
 }
+
+type FormState = MakeDecisionRequest;
+
+type FieldDef =
+  | { key: keyof FormState; label: string; kind: 'number'; min?: number; max?: number; wide?: boolean }
+  | { key: keyof FormState; label: string; kind: 'select'; options: LabelOption[]; wide?: boolean };
+
+/** Fushat e formularit, në rendin që shfaqen (dy kolona) */
+const FIELDS: FieldDef[] = [
+  { key: 'customerId', label: 'ID e Klientit', kind: 'number' },
+  { key: 'age', label: 'Mosha', kind: 'number', min: 18, max: 100 },
+  { key: 'job', label: 'Profesioni', kind: 'select', options: JOBS },
+  { key: 'marital', label: 'Gjendja Civile', kind: 'select', options: MARITAL_OPTIONS },
+  { key: 'education', label: 'Arsimimi', kind: 'select', options: EDUCATION_OPTIONS },
+  { key: 'balance', label: 'Bilanci Bankar (€)', kind: 'number' },
+  { key: 'housing', label: 'Kredi Banesore Aktive?', kind: 'select', options: YES_NO },
+  { key: 'loan', label: 'Kredi Personale Aktive?', kind: 'select', options: YES_NO },
+  { key: 'default', label: 'Histori Mospagimi?', kind: 'select', options: YES_NO },
+  { key: 'duration', label: 'Kohëzgjatja e Thirrjes (sekonda)', kind: 'number', min: 0 },
+  { key: 'campaign', label: 'Kontakte në këtë Fushatë', kind: 'number', min: 0 },
+  { key: 'previous', label: 'Kontakte Paraprake (fushata të tjera)', kind: 'number', min: 0 },
+  { key: 'contact', label: 'Mënyra e Kontaktit', kind: 'select', options: CONTACT_OPTIONS },
+  { key: 'month', label: 'Muaji i Kontaktit', kind: 'select', options: MONTH_OPTIONS },
+  { key: 'day', label: 'Dita e Muajit', kind: 'number', min: 1, max: 31 },
+  { key: 'pDays', label: 'Ditë nga Kontakti i Fundit (-1 = asnjëherë)', kind: 'number', min: -1 },
+  {
+    key: 'pOutcome',
+    label: 'Rezultati i Fushatës së Mëparshme',
+    kind: 'select',
+    options: POUTCOME_OPTIONS,
+    wide: true,
+  },
+];
 
 /**
  * Formulari për vlerësimin e një klienti të ri.
@@ -25,7 +78,7 @@ interface NewDecisionFormProps {
  * dhe motori i rregullave të biznesit gjenerojnë një vendim të ri në kohë reale.
  */
 export const NewDecisionForm: FC<NewDecisionFormProps> = ({ nextCustomerId, onClose, onCreated }) => {
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<FormState>({
     customerId: nextCustomerId,
     age: 35,
     job: 'management',
@@ -48,12 +101,10 @@ export const NewDecisionForm: FC<NewDecisionFormProps> = ({ nextCustomerId, onCl
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<MakeDecisionResponse | null>(null);
 
-  const TEXT_FIELDS = ['job', 'marital', 'education', 'housing', 'loan', 'default', 'contact', 'month', 'pOutcome'];
-
-  const updateField = (field: keyof typeof form, value: string) => {
+  const updateField = (field: FieldDef, value: string) => {
     setForm(prev => ({
       ...prev,
-      [field]: TEXT_FIELDS.includes(field) ? value : Number(value),
+      [field.key]: field.kind === 'select' ? value : Number(value),
     }));
   };
 
@@ -84,31 +135,28 @@ export const NewDecisionForm: FC<NewDecisionFormProps> = ({ nextCustomerId, onCl
   };
 
   return (
-    <div className="fixed inset-0 bg-navy-950 bg-opacity-40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 bg-navy-900 px-6 py-5 flex items-center justify-between z-10">
-          <div className="flex items-center gap-3">
-            <UserPlus className="w-5 h-5 text-navy-300" />
-            <h2 className="text-lg font-semibold text-white">Vlerëso Klient të Ri</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-navy-300 hover:text-white hover:bg-white hover:bg-opacity-10 p-2 rounded-lg transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={open => !open && onClose()}>
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-navy-900">
+            <UserPlus className="w-5 h-5 text-navy-600" />
+            Vlerëso Klient të Ri
+          </DialogTitle>
+          <DialogDescription>
+            {result
+              ? 'Vendimi u gjenerua dhe u ruajt në Regjistrin e Vendimeve.'
+              : 'Plotëso të dhënat e klientit. Modeli i AI-së dhe rregullat e biznesit do të gjenerojnë një vendim të ri në kohë reale.'}
+          </DialogDescription>
+        </DialogHeader>
 
         {result ? (
           // Rezultati i vendimit të sapo krijuar
-          <div className="p-6 space-y-4">
+          <div className="space-y-4">
             <div
-              className={`rounded-lg p-4 border flex items-start gap-3 ${
-                result.finalDecision
-                  ? 'bg-success-50 border-success-200'
-                  : 'bg-danger-50 border-danger-200'
-              }`}
+              className={cn(
+                'rounded-lg p-4 border flex items-start gap-3',
+                result.finalDecision ? 'bg-success-50 border-success-200' : 'bg-danger-50 border-danger-200'
+              )}
             >
               {result.finalDecision ? (
                 <CheckCircle2 className="w-5 h-5 text-success-600 flex-shrink-0" />
@@ -116,270 +164,81 @@ export const NewDecisionForm: FC<NewDecisionFormProps> = ({ nextCustomerId, onCl
                 <AlertCircle className="w-5 h-5 text-danger-600 flex-shrink-0" />
               )}
               <div>
-                <p className={`font-semibold text-base ${result.finalDecision ? 'text-success-700' : 'text-danger-700'}`}>
+                <p
+                  className={cn(
+                    'font-semibold text-base',
+                    result.finalDecision ? 'text-success-700' : 'text-danger-700'
+                  )}
+                >
                   {result.finalDecision ? 'Kërkesa u Miratua' : 'Kërkesa u Refuzua'}
                 </p>
                 <p className="text-sm text-slate-600 mt-1">
                   AI-ja parashikoi {result.mlPrediction ? 'miratim' : 'refuzim'} me{' '}
-                  <span className="font-semibold text-navy-900">{(result.mlConfidence * 100).toFixed(1)}%</span> besueshmëri.
+                  <span className="font-semibold text-navy-900">{(result.mlConfidence * 100).toFixed(1)}%</span>{' '}
+                  besueshmëri.
                   {result.wasOverridden && ' Rregullat e biznesit e ndryshuan vendimin final.'}
                 </p>
                 {result.finalDecision && (
                   <p className="text-sm text-slate-600 mt-1">
-                    Norma e interesit: <span className="font-semibold text-navy-900">{(result.approvedInterestRate * 100).toFixed(2)}%</span>
+                    Norma e interesit:{' '}
+                    <span className="font-semibold text-navy-900">
+                      {(result.approvedInterestRate * 100).toFixed(2)}%
+                    </span>
                   </p>
                 )}
               </div>
             </div>
 
-            <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-200">
+            <div className="text-xs text-muted-foreground bg-slate-50 p-3 rounded-lg border">
               <p className="font-medium text-slate-600 mb-1">Gjurma e Auditimit</p>
               <p className="whitespace-pre-wrap font-mono">{result.auditTrail}</p>
             </div>
 
-            <p className="text-sm text-slate-500">
-              Ky vendim tani është shtuar te Regjistri i Vendimeve në panel — mund ta shohësh dhe klikosh mbi të për detaje të plota.
-            </p>
-
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={resetForNext}
-                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition text-sm font-medium"
-              >
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="secondary" onClick={resetForNext}>
                 Vlerëso Një Tjetër
-              </button>
-              <button
-                onClick={onClose}
-                className="px-4 py-2 bg-navy-700 text-white rounded-lg hover:bg-navy-800 transition text-sm font-medium"
-              >
-                Mbyll dhe Shiko Panelin
-              </button>
-            </div>
+              </Button>
+              <Button onClick={onClose}>Mbyll dhe Shiko Panelin</Button>
+            </DialogFooter>
           </div>
         ) : (
           // Formulari i të dhënave të klientit
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            <p className="text-sm text-slate-500">
-              Plotëso të dhënat e klientit. Modeli i AI-së dhe rregullat e biznesit do të gjenerojnë
-              një vendim të ri në kohë reale.
-            </p>
-
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">ID e Klientit</label>
-                <input
-                  type="number"
-                  value={form.customerId}
-                  onChange={e => updateField('customerId', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-navy-200 focus:border-navy-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Mosha</label>
-                <input
-                  type="number"
-                  min={18}
-                  max={100}
-                  value={form.age}
-                  onChange={e => updateField('age', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-navy-200 focus:border-navy-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Profesioni</label>
-                <select
-                  value={form.job}
-                  onChange={e => updateField('job', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-navy-200 focus:border-navy-500"
-                >
-                  {JOBS.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Gjendja Civile</label>
-                <select
-                  value={form.marital}
-                  onChange={e => updateField('marital', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-navy-200 focus:border-navy-500"
-                >
-                  {MARITAL_OPTIONS.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Arsimimi</label>
-                <select
-                  value={form.education}
-                  onChange={e => updateField('education', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-navy-200 focus:border-navy-500"
-                >
-                  {EDUCATION_OPTIONS.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Bilanci Bankar (€)</label>
-                <input
-                  type="number"
-                  value={form.balance}
-                  onChange={e => updateField('balance', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-navy-200 focus:border-navy-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Kredi Banesore Aktive?</label>
-                <select
-                  value={form.housing}
-                  onChange={e => updateField('housing', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-navy-200 focus:border-navy-500"
-                >
-                  {YES_NO.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Kredi Personale Aktive?</label>
-                <select
-                  value={form.loan}
-                  onChange={e => updateField('loan', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-navy-200 focus:border-navy-500"
-                >
-                  {YES_NO.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Histori Mospagimi?</label>
-                <select
-                  value={form.default}
-                  onChange={e => updateField('default', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-navy-200 focus:border-navy-500"
-                >
-                  {YES_NO.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Kohëzgjatja e Thirrjes (sekonda)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={form.duration}
-                  onChange={e => updateField('duration', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-navy-200 focus:border-navy-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Kontakte në këtë Fushatë
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={form.campaign}
-                  onChange={e => updateField('campaign', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-navy-200 focus:border-navy-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Kontakte Paraprake (fushata të tjera)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={form.previous}
-                  onChange={e => updateField('previous', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-navy-200 focus:border-navy-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Mënyra e Kontaktit</label>
-                <select
-                  value={form.contact}
-                  onChange={e => updateField('contact', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-navy-200 focus:border-navy-500"
-                >
-                  {CONTACT_OPTIONS.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Muaji i Kontaktit</label>
-                <select
-                  value={form.month}
-                  onChange={e => updateField('month', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-navy-200 focus:border-navy-500"
-                >
-                  {MONTH_OPTIONS.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Dita e Muajit</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={31}
-                  value={form.day}
-                  onChange={e => updateField('day', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-navy-200 focus:border-navy-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Ditë nga Kontakti i Fundit (-1 = asnjëherë)
-                </label>
-                <input
-                  type="number"
-                  min={-1}
-                  value={form.pDays}
-                  onChange={e => updateField('pDays', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-navy-200 focus:border-navy-500"
-                  required
-                />
-              </div>
-
-              <div className="col-span-2">
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Rezultati i Fushatës së Mëparshme
-                </label>
-                <select
-                  value={form.pOutcome}
-                  onChange={e => updateField('pOutcome', e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-navy-200 focus:border-navy-500"
-                >
-                  {POUTCOME_OPTIONS.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
+              {FIELDS.map(field => {
+                const id = `field-${field.key}`;
+                return (
+                  <div key={field.key} className={cn('space-y-1.5', field.wide && 'col-span-2')}>
+                    <Label htmlFor={id} className="text-xs font-semibold text-slate-600">
+                      {field.label}
+                    </Label>
+                    {field.kind === 'number' ? (
+                      <Input
+                        id={id}
+                        type="number"
+                        min={field.min}
+                        max={field.max}
+                        value={form[field.key]}
+                        onChange={e => updateField(field, e.target.value)}
+                        required
+                      />
+                    ) : (
+                      <Select value={String(form[field.key])} onValueChange={v => updateField(field, v)}>
+                        <SelectTrigger id={id}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {field.options.map(o => (
+                            <SelectItem key={o.value} value={o.value}>
+                              {o.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             {error && (
@@ -388,27 +247,19 @@ export const NewDecisionForm: FC<NewDecisionFormProps> = ({ nextCustomerId, onCl
               </div>
             )}
 
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition text-sm font-medium"
-              >
+            <DialogFooter className="gap-2 sm:gap-0 pt-2">
+              <Button type="button" variant="secondary" onClick={onClose}>
                 Anulo
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-4 py-2 bg-navy-700 text-white rounded-lg hover:bg-navy-800 transition text-sm font-medium disabled:opacity-60 flex items-center gap-2"
-              >
-                {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting && <Loader2 className="animate-spin" />}
                 {submitting ? 'Duke vlerësuar...' : 'Dërgo për Vlerësim'}
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </form>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

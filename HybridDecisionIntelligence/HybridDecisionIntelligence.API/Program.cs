@@ -6,15 +6,19 @@ using HybridDecisionIntelligence.Application.Repositories;
 using HybridDecisionIntelligence.Infrastructure.Repositories;
 using HybridDecisionIntelligence.Infrastructure.ML;
 using HybridDecisionIntelligence.Infrastructure.Reports;
+using HybridDecisionIntelligence.Infrastructure.Import;
 using HybridDecisionIntelligence.Application.Requests;
-using HybridDecisionIntelligence.Domain.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    // Every controller also answers on the unversioned /api/... route; document only v1
+    c.DocInclusionPredicate((_, api) => api.RelativePath?.StartsWith("api/v1/") == true);
+});
 
 // Database
 builder.Services.AddDbContext<HybridDecisionContext>(options =>
@@ -29,22 +33,29 @@ builder.Services.AddMediatR(config =>
     config.RegisterServicesFromAssembly(typeof(MakeDecisionRequest).Assembly)
 );
 
+// Decision policy: dynamic (macro-economic) parameters, e.g. the reference rate
+builder.Services.AddSingleton(
+    builder.Configuration.GetSection(DecisionPolicyOptions.SectionName).Get<DecisionPolicyOptions>()
+    ?? new DecisionPolicyOptions());
+
 // Application Services
 builder.Services.AddScoped<IDecisionEngine, DecisionEngine>();
 builder.Services.AddScoped<IBusinessRuleEngine, BusinessRuleEngine>();
-builder.Services.AddScoped<IBusinessRuleService, BusinessRuleService>();
-builder.Services.AddScoped<IHybridDecisionService, HybridDecisionService>();
 builder.Services.AddScoped<IMLPredictor, MLPredictor>();
 
 // Infrastructure Services
-builder.Services.AddScoped<IMLModelService, MLNetModelService>();
+// Singleton: the trained model is loaded from disk once and shared by all requests
+builder.Services.AddSingleton<IMLModelService, MLNetModelService>();
 builder.Services.AddScoped<IDecisionReportGenerator, QuestPdfDecisionReportGenerator>();
+builder.Services.AddScoped<IDatasetService, CsvDatasetService>();
+builder.Services.AddHttpClient(); // used by the in-process vs HTTP inference benchmark
 
 // Repositories
 builder.Services.AddScoped<IDecisionRepository, DecisionRepository>();
 builder.Services.AddScoped<IBusinessRuleRepository, BusinessRuleRepository>();
 builder.Services.AddScoped<IBankCustomerRepository, BankCustomerRepository>();
 builder.Services.AddScoped<IMLPredictionRepository, MLPredictionRepository>();
+builder.Services.AddScoped<IUnitOfWork, EFUnitOfWork>();
 
 // Logging
 builder.Services.AddLogging(config =>
@@ -110,67 +121,16 @@ using (var scope = app.Services.CreateScope())
         throw;
     }
 
-    app.Logger.LogInformation(created
-        ? "Database schema created (HybridDecisionIntelligenceDb)"
-        : "Database already exists — schema left as-is (EnsureCreated does not alter existing tables)");
-
-    if (!db.HybridDecisions.Any())
+    if (created)
     {
-        var sampleCustomer = new BankCustomer
-        {
-            Id = 1,
-            Age = 38,
-            Job = "technician",
-            Marital = "married",
-            Education = "tertiary",
-            Default = "no",
-            Balance = 32000m,
-            Housing = "yes",
-            Loan = "no",
-            Contact = "cellular",
-            Day = 12,
-            Month = "may",
-            Duration = 210,
-            Campaign = 2,
-            PDays = 999,
-            Previous = 0,
-            POutcome = "unknown",
-            SubscribedToTerm = false,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        var samplePrediction = new MLPredictionResult
-        {
-            Id = 1,
-            CustomerId = 1,
-            PredictedLabel = true,
-            Score = 0.82f,
-            Probability = 0.82f,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        var sampleDecision = new HybridDecision
-        {
-            Id = 1,
-            CustomerId = 1,
-            MLPredictionResultId = 1,
-            MLPredicted = true,
-            MLConfidence = 0.82f,
-            FinalDecision = true,
-            AuditTrail = "ML predicted APPROVE with 82% confidence | Business rules passed | Final decision approved",
-            ApprovedInterestRate = 0.045m,
-            RulesApplied = "Minimum Balance Rule, Age Eligibility Rule",
-            CreatedAt = DateTime.UtcNow,
-            WasOverridden = false,
-            OverrideReason = string.Empty
-        };
-
-        db.BankCustomers.Add(sampleCustomer);
-        db.MLPredictionResults.Add(samplePrediction);
-        db.HybridDecisions.Add(sampleDecision);
-        db.SaveChanges();
-
-        app.Logger.LogInformation("Seeded sample hybrid decision data");
+        // Sample customer/prediction/decision and the default rules come from
+        // HasData in HybridDecisionContext, inserted by EnsureCreated.
+        app.Logger.LogInformation("Database schema created (HybridDecisionIntelligenceDb) with seed data");
+    }
+    else
+    {
+        SqlServerSchemaUpgrader.Apply(db);
+        app.Logger.LogInformation("Database already exists — schema upgrade checks applied");
     }
 
     app.Logger.LogInformation(

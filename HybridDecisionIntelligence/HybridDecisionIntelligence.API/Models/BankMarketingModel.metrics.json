@@ -1,0 +1,18 @@
+{
+  "EvaluatedAtUtc": "2026-09-22T18:56:05.352215Z",
+  "DatasetPath": "C:\\Users\\Alma\\Desktop\\TemaMaster\\HybridDecisionIntelligence\\HybridDecisionIntelligence.API\\Data\\BankData.csv",
+  "ModelPath": "C:\\Users\\Alma\\Desktop\\TemaMaster\\HybridDecisionIntelligence\\HybridDecisionIntelligence.API\\Models\\BankMarketingModel.zip",
+  "TrainTestSplit": {
+    "TestFraction": 0.2,
+    "Seed": 0,
+    "Note": "MLContext(seed:0) and TrainTestSplit(seed:0); Duration excluded (UCI leakage)"
+  },
+  "Accuracy": 0.8925428948526177,
+  "AreaUnderRocCurve": 0.7944884088634089,
+  "F1Score": 0.36102027468933945,
+  "PositivePrecision": 0.6433566433566433,
+  "PositiveRecall": 0.2509090909090909,
+  "NegativePrecision": 0.9048828350455962,
+  "NegativeRecall": 0.9808558558558559,
+  "LogLoss": 0.4220485488936805
+}

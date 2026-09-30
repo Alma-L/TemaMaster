@@ -10,7 +10,45 @@ namespace HybridDecisionIntelligence.Application.Repositories
         Task<HybridDecision> GetDecisionByIdAsync(int id);
         Task<List<HybridDecision>> GetCustomerDecisionsAsync(int customerId);
         Task SaveDecisionAsync(HybridDecision decision);
-        Task<List<HybridDecision>> GetDecisionsAsync(int pageNumber, int pageSize);
+        Task<List<HybridDecision>> GetDecisionsAsync(int pageNumber, int pageSize, DecisionFilter? filter = null);
+        Task<DecisionStats> GetDecisionStatsAsync(DecisionFilter? filter = null);
+    }
+
+    /// <summary>
+    /// Totals over all stored decisions matching a filter, for dashboard rates
+    /// </summary>
+    public class DecisionStats
+    {
+        public int Total { get; set; }
+        public int MLApproved { get; set; }
+        public int Approved { get; set; }
+        public int Overridden { get; set; }
+        public double AverageProbability { get; set; }
+        public decimal AverageInterestRate { get; set; }
+
+        /// <summary>How many overridden decisions each rule failed (one decision can fail several)</summary>
+        public List<RuleOverrideCount> OverridesByRule { get; set; } = new();
+    }
+
+    public class RuleOverrideCount
+    {
+        public string Rule { get; set; } = string.Empty;
+        public int Count { get; set; }
+    }
+
+    /// <summary>
+    /// Optional filters for the decision register. Null fields are not applied.
+    /// Probability and interest rate are fractions (0.25 = 25%).
+    /// </summary>
+    public class DecisionFilter
+    {
+        public int? CustomerId { get; set; }
+        public bool? FinalDecision { get; set; }
+        public bool? WasOverridden { get; set; }
+        public float? MinProbability { get; set; }
+        public float? MaxProbability { get; set; }
+        public decimal? MinInterestRate { get; set; }
+        public decimal? MaxInterestRate { get; set; }
     }
 
     /// <summary>
@@ -51,5 +89,14 @@ namespace HybridDecisionIntelligence.Application.Repositories
         Task<MLPredictionResult> GetPredictionByIdAsync(int id);
         Task<List<MLPredictionResult>> GetCustomerPredictionsAsync(int customerId);
         Task SavePredictionAsync(MLPredictionResult prediction);
+    }
+
+    /// <summary>
+    /// Runs several repository writes as one atomic database transaction, so a
+    /// decision request never leaves a customer or prediction without its decision.
+    /// </summary>
+    public interface IUnitOfWork
+    {
+        Task<T> ExecuteInTransactionAsync<T>(Func<Task<T>> work, CancellationToken cancellationToken = default);
     }
 }

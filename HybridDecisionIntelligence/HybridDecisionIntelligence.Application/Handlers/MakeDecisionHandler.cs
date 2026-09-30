@@ -1,4 +1,5 @@
 using HybridDecisionIntelligence.Domain.Entities;
+using HybridDecisionIntelligence.Domain.ValueObjects;
 using HybridDecisionIntelligence.Application.Repositories;
 using HybridDecisionIntelligence.Application.Requests;
 using HybridDecisionIntelligence.Application.Services;
@@ -16,17 +17,20 @@ namespace HybridDecisionIntelligence.Application.Handlers
         private readonly IMLPredictor _mlPredictor;
         private readonly IDecisionEngine _decisionEngine;
         private readonly IBankCustomerRepository _customerRepository;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<MakeDecisionHandler> _logger;
 
         public MakeDecisionHandler(
             IMLPredictor mlPredictor,
             IDecisionEngine decisionEngine,
             IBankCustomerRepository customerRepository,
+            IUnitOfWork unitOfWork,
             ILogger<MakeDecisionHandler> logger)
         {
             _mlPredictor = mlPredictor;
             _decisionEngine = decisionEngine;
             _customerRepository = customerRepository;
+            _unitOfWork = unitOfWork;
             _logger = logger;
         }
 
@@ -58,21 +62,30 @@ namespace HybridDecisionIntelligence.Application.Handlers
                     POutcome = request.POutcome
                 };
 
-                // Persist the customer's submitted profile so it can be displayed
-                // alongside the decision later (e.g. in the XAI dashboard detail view).
-                await _customerRepository.SaveOrUpdateCustomerAsync(customer);
+                // Customer profile, ML prediction and decision are written atomically:
+                // if any step fails, none of them is persisted.
+                var decision = await _unitOfWork.ExecuteInTransactionAsync(async () =>
+                {
+                    // Persist the customer's latest submitted profile.
+                    await _customerRepository.SaveOrUpdateCustomerAsync(customer);
 
-                // Step 1: Get ML Prediction
-                _logger.LogInformation("Requesting ML prediction...");
-                var mlResult = await _mlPredictor.PredictAsync(customer);
-                
-                // Step 2: Apply Hybrid Decision Engine
-                _logger.LogInformation("Applying hybrid decision engine...");
-                var decision = await _decisionEngine.MakeDecisionAsync(customer, mlResult);
-                
-                // Step 3: Save decision to repository
-                await _decisionEngine.SaveDecisionAsync(decision);
-                
+                    // Step 1: Get ML Prediction (saved, so it gets an Id)
+                    _logger.LogInformation("Requesting ML prediction...");
+                    var mlResult = await _mlPredictor.PredictAsync(customer);
+
+                    // Step 2: Apply Hybrid Decision Engine
+                    _logger.LogInformation("Applying hybrid decision engine...");
+                    var hybridDecision = await _decisionEngine.MakeDecisionAsync(customer, mlResult);
+
+                    // Freeze the exact input that was evaluated; the customer row above
+                    // may be overwritten by later requests for the same customer.
+                    hybridDecision.CustomerSnapshotJson = CustomerSnapshot.Serialize(customer);
+
+                    // Step 3: Save decision to repository
+                    await _decisionEngine.SaveDecisionAsync(hybridDecision);
+                    return hybridDecision;
+                }, cancellationToken);
+
                 // Step 4: Build response with audit trail
                 var response = new MakeDecisionResponse
                 {

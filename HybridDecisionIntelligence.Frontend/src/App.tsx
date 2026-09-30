@@ -1,4 +1,5 @@
 import DecisionDashboard from './components/DecisionDashboard';
+import { TooltipProvider } from 'src/components/ui/tooltip';
 import './App.css';
 
 /**
@@ -7,9 +8,11 @@ import './App.css';
  */
 function App() {
   return (
-    <div className="App">
-      <DecisionDashboard />
-    </div>
+    <TooltipProvider delayDuration={150}>
+      <div className="App">
+        <DecisionDashboard />
+      </div>
+    </TooltipProvider>
   );
 }
 
