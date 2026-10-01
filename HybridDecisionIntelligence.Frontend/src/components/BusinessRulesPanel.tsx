@@ -28,13 +28,17 @@ const describeRule = (rule: BusinessRule): string => {
   if (rule.minBalance > 0) {
     parts.push(`bilanci bankar duhet të jetë të paktën €${rule.minBalance.toLocaleString('sq-AL')}`);
   }
-  if (rule.minAge > 18 || rule.maxAge < 100) {
+  if (rule.minAge > 0 && rule.maxAge > 0) {
     parts.push(`mosha duhet të jetë mes ${rule.minAge} dhe ${rule.maxAge} vjeç`);
+  } else if (rule.minAge > 0) {
+    parts.push(`mosha duhet të jetë të paktën ${rule.minAge} vjeç`);
+  } else if (rule.maxAge > 0) {
+    parts.push(`mosha duhet të jetë jo më shumë se ${rule.maxAge} vjeç`);
   }
   if (rule.allowedJobs && rule.allowedJobs.length > 0) {
     parts.push(`profesioni duhet të jetë njëri prej: ${rule.allowedJobs.join(', ')}`);
   }
-  if (parts.length === 0) {
+  if (rule.requireNoDefault) {
     parts.push('klienti nuk duhet të ketë histori mospagimi (default)');
   }
   return parts.join('; ') + '.';

@@ -14,7 +14,10 @@ namespace HybridDecisionIntelligence.Domain.Entities
     }
 
     /// <summary>
-    /// Represents a business rule that can override ML predictions
+    /// Represents a business rule that can override ML predictions.
+    /// A rule checks only the criteria it configures: MinBalance > 0 (balance),
+    /// MinAge/MaxAge > 0 (age; MaxAge 0 = no upper bound), a non-empty AllowedJobs
+    /// list (job) and RequireNoDefault (default history).
     /// </summary>
     public class BusinessRule
     {
@@ -25,6 +28,7 @@ namespace HybridDecisionIntelligence.Domain.Entities
         public int MinAge { get; set; }
         public int MaxAge { get; set; }
         public List<string> AllowedJobs { get; set; } = new();
+        public bool RequireNoDefault { get; set; }
         public decimal MaxInterestRate { get; set; }
         public decimal MinInterestRate { get; set; }
         public bool IsActive { get; set; } = true;

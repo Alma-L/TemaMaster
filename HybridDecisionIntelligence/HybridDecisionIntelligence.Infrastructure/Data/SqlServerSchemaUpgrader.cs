@@ -52,6 +52,20 @@ namespace HybridDecisionIntelligence.Infrastructure.Data
                 ALTER TABLE dbo.HybridDecisions
                     ADD CONSTRAINT FK_HybridDecisions_MLPredictionResults_MLPredictionResultId
                     FOREIGN KEY (MLPredictionResultId) REFERENCES dbo.MLPredictionResults (Id);",
+
+            // 4. One condition per rule: the default-history check becomes an explicit
+            //    flag instead of being applied inside every rule.
+            @"IF COL_LENGTH('dbo.BusinessRules', 'RequireNoDefault') IS NULL
+                ALTER TABLE dbo.BusinessRules
+                    ADD RequireNoDefault bit NOT NULL
+                    CONSTRAINT DF_BusinessRules_RequireNoDefault DEFAULT 0;",
+
+            // 5. Bring the seeded rules to the one-condition form (the age bounds on the
+            //    balance and default rules were placeholders that are now checked).
+            @"UPDATE dbo.BusinessRules SET MinAge = 0, MaxAge = 0
+              WHERE Id IN (1, 3) AND MinAge = 18 AND MaxAge = 100;
+              UPDATE dbo.BusinessRules SET RequireNoDefault = 1
+              WHERE Id = 3 AND Name = N'No Default History';",
         };
 
         public static void Apply(HybridDecisionContext db)

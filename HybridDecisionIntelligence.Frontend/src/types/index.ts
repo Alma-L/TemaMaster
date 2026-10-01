@@ -90,6 +90,7 @@ export interface BusinessRule {
   minAge: number;
   maxAge: number;
   allowedJobs: string[];
+  requireNoDefault: boolean;
   maxInterestRate: number;
   minInterestRate: number;
   isActive: boolean;

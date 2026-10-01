@@ -1,4 +1,4 @@
-using HybridDecisionIntelligence.Domain.Entities;
+﻿using HybridDecisionIntelligence.Domain.Entities;
 using HybridDecisionIntelligence.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 
@@ -122,8 +122,8 @@ namespace HybridDecisionIntelligence.Infrastructure.Data
                     Name = "Minimum Balance Rule",
                     Description = "Customer must have minimum balance of €1000",
                     MinBalance = 1000,
-                    MinAge = 18,
-                    MaxAge = 100,
+                    MinAge = 0,
+                    MaxAge = 0,
                     MaxInterestRate = 0.12m,
                     MinInterestRate = 0.02m,
                     IsActive = true,
@@ -148,8 +148,9 @@ namespace HybridDecisionIntelligence.Infrastructure.Data
                     Name = "No Default History",
                     Description = "Customer must not have previous default",
                     MinBalance = 0,
-                    MinAge = 18,
-                    MaxAge = 100,
+                    MinAge = 0,
+                    MaxAge = 0,
+                    RequireNoDefault = true,
                     MaxInterestRate = 0.12m,
                     MinInterestRate = 0.02m,
                     IsActive = true,

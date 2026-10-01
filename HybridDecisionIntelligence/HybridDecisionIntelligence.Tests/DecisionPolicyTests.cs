@@ -127,6 +127,40 @@ namespace HybridDecisionIntelligence.Tests
             result.MaxInterestRate.Should().Be(0.10m);
         }
 
+        /// <summary>The three seeded rules, each owning exactly one condition</summary>
+        private static BusinessRuleEngine SeededRuleEngine()
+        {
+            var repository = new Mock<IBusinessRuleRepository>();
+            repository.Setup(m => m.GetActiveRulesAsync()).ReturnsAsync(new List<BusinessRule>
+            {
+                new() { Name = "Minimum Balance Rule", MinBalance = 1000, MinInterestRate = 0.02m, MaxInterestRate = 0.12m },
+                new() { Name = "Age Eligibility Rule", MinAge = 25, MaxAge = 70, MinInterestRate = 0.02m, MaxInterestRate = 0.12m },
+                new() { Name = "No Default History", RequireNoDefault = true, MinInterestRate = 0.02m, MaxInterestRate = 0.12m }
+            });
+            return new BusinessRuleEngine(repository.Object, NullLogger<BusinessRuleEngine>.Instance);
+        }
+
+        [Fact]
+        public async Task RuleEngine_CustomerInDefault_FailsOnlyTheDefaultRule()
+        {
+            var customer = Customer(age: 40, balance: 5000m);
+            customer.Default = "yes";
+
+            var result = await SeededRuleEngine().EvaluateAsync(customer);
+
+            result.FailedRules.Should().Equal("No Default History");
+            result.AppliedRules.Should().Equal("Minimum Balance Rule", "Age Eligibility Rule");
+        }
+
+        [Fact]
+        public async Task RuleEngine_LowBalance_FailsOnlyTheBalanceRule()
+        {
+            var result = await SeededRuleEngine().EvaluateAsync(Customer(age: 40, balance: 400m));
+
+            result.FailedRules.Should().Equal("Minimum Balance Rule");
+            result.IsApproved.Should().BeFalse();
+        }
+
         [Fact]
         public async Task CustomerHistoryHandler_ReturnsRepositoryDecisions()
         {

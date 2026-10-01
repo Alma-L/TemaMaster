@@ -124,8 +124,9 @@ namespace HybridDecisionIntelligence.Application.Services
 
         /// <summary>
         /// Returns why the offered rate breaks the rules' corridor, or null if it is inside.
-        /// Too high: the offer is not competitive / too costly for the customer.
-        /// Too low: the offer does not cover the bank's funding cost.
+        /// The product is a term deposit, so the bank pays this rate to the customer:
+        /// Too high: the deposit costs the bank more than its funding-cost ceiling.
+        /// Too low: the offer is not competitive enough to attract the customer.
         /// </summary>
         private static string? EvaluateRatePolicy(decimal rate, BusinessRuleResult rules)
         {
@@ -142,17 +143,20 @@ namespace HybridDecisionIntelligence.Application.Services
                 : $"within {rules.MinInterestRate:P2}–{rules.MaxInterestRate:P2}";
 
         /// <summary>
-        /// Offered rate = reference rate + spread. The spread grows with model
-        /// uncertainty and risk and shrinks for high balances and mature customers.
-        /// It is not clamped: an offer outside the policy corridor is rejected by the
-        /// interest-rate policy rule instead of being silently adjusted.
+        /// Offered deposit rate = reference rate + acquisition incentive. The bank pays
+        /// this rate, so the spread is an incentive: it grows for customers the model sees
+        /// as less likely to subscribe and for profiles further from the bank's core
+        /// segment (risk level), and shrinks for established customers (high balance,
+        /// mature age) who need less incentive. The coefficients are illustrative policy
+        /// parameters, not calibrated values. The rate is not clamped: an offer outside
+        /// the policy corridor is rejected by the interest-rate policy rule instead.
         /// </summary>
         private decimal CalculateInterestRate(BankCustomer customer, float mlConfidence, string riskLevel)
         {
-            // Confidence adjustment: Higher confidence = lower rate
+            // Incentive for uncertain customers: lower subscription probability = higher rate
             decimal confidenceAdjustment = (1 - (decimal)mlConfidence) * 0.02m;
 
-            // Risk level adjustment
+            // Profile adjustment: customers outside the core segment get a larger incentive
             decimal riskAdjustment = riskLevel switch
             {
                 "Low" => 0.0m,
@@ -161,7 +165,7 @@ namespace HybridDecisionIntelligence.Application.Services
                 _ => 0.02m
             };
 
-            // Balance adjustment: Higher balance = lower rate
+            // Established customers (high balance) need a smaller incentive
             decimal balanceAdjustment = customer.Balance switch
             {
                 > 50000 => -0.005m,
@@ -169,7 +173,7 @@ namespace HybridDecisionIntelligence.Application.Services
                 _ => 0.0m
             };
 
-            // Age adjustment: Mature customers get slightly better rates
+            // Mature customers subscribe more readily and need a smaller incentive
             decimal ageAdjustment = customer.Age switch
             {
                 > 55 => -0.005m,

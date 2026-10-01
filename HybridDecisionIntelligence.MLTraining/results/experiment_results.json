@@ -1,0 +1,579 @@
+{
+  "comparison": [
+    {
+      "model": "Logistic Regression (L-BFGS)",
+      "cvAucMean": 0.7652211986627309,
+      "cvAucStd": 0.01265450955750944,
+      "cvAuprcMean": 0.405904209263609,
+      "cvAuprcStd": 0.015121441780036642,
+      "testAuc": 0.7625637000637001,
+      "testAuprc": 0.3997990595623832,
+      "testAccuracy": 0.8890233172019357,
+      "testPrecision": 0.6444444444444445,
+      "testRecall": 0.18454545454545454,
+      "testF1": 0.28692579505300353,
+      "seconds": 78.8
+    },
+    {
+      "model": "FastForest (Random Forest, 100 pem\u00EB)",
+      "cvAucMean": 0.7830175455438984,
+      "cvAucStd": 0.009278108163620208,
+      "cvAuprcMean": 0.4281160184365736,
+      "cvAuprcStd": 0.014909596951344643,
+      "testAuc": 0.783326223951224,
+      "testAuprc": 0.43657646718032,
+      "testAccuracy": 0.8906731192256929,
+      "testPrecision": 0.712,
+      "testRecall": 0.1618181818181818,
+      "testF1": 0.26370370370370366,
+      "seconds": 191
+    },
+    {
+      "model": "LightGBM (100 iteracione)",
+      "cvAucMean": 0.7947345664580834,
+      "cvAucStd": 0.008461570270310467,
+      "cvAuprcMean": 0.4350967945909131,
+      "cvAuprcStd": 0.016504985550895638,
+      "testAuc": 0.7938992401492402,
+      "testAuprc": 0.460138416832858,
+      "testAccuracy": 0.8914430268367796,
+      "testPrecision": 0.6252771618625277,
+      "testRecall": 0.25636363636363635,
+      "testF1": 0.3636363636363636,
+      "seconds": 83.8
+    },
+    {
+      "model": "FastTree (100 pem\u00EB, 10 gjethe) \u2013 modeli i sistemit",
+      "cvAucMean": 0.7975368756035291,
+      "cvAucStd": 0.0074735736356994105,
+      "cvAuprcMean": 0.44222529366954505,
+      "cvAuprcStd": 0.01489359842420523,
+      "testAuc": 0.7944884088634089,
+      "testAuprc": 0.456234360949421,
+      "testAccuracy": 0.8925428948526177,
+      "testPrecision": 0.6433566433566433,
+      "testRecall": 0.2509090909090909,
+      "testF1": 0.36102027468933945,
+      "seconds": 72.2
+    }
+  ],
+  "grid": [
+    {
+      "trees": 100,
+      "leaves": 10,
+      "learningRate": 0.1,
+      "cvAucMean": 0.795022635106646,
+      "cvAucStd": 0.008404536047204227
+    },
+    {
+      "trees": 100,
+      "leaves": 10,
+      "learningRate": 0.2,
+      "cvAucMean": 0.7975368756035291,
+      "cvAucStd": 0.0074735736356994105
+    },
+    {
+      "trees": 100,
+      "leaves": 31,
+      "learningRate": 0.1,
+      "cvAucMean": 0.7976675965835769,
+      "cvAucStd": 0.007421151408127653
+    },
+    {
+      "trees": 100,
+      "leaves": 31,
+      "learningRate": 0.2,
+      "cvAucMean": 0.792035271557723,
+      "cvAucStd": 0.007501110060186096
+    },
+    {
+      "trees": 300,
+      "leaves": 10,
+      "learningRate": 0.1,
+      "cvAucMean": 0.79881502275005,
+      "cvAucStd": 0.008462006528020382,
+      "testAuc": 0.7973797661297661,
+      "testAuprc": 0.4613605326127011,
+      "testPrecision": 0.6247139588100686,
+      "testRecall": 0.24818181818181817,
+      "testF1": 0.35523747560182173
+    },
+    {
+      "trees": 300,
+      "leaves": 10,
+      "learningRate": 0.2,
+      "cvAucMean": 0.7952595367666087,
+      "cvAucStd": 0.008457033276364403
+    },
+    {
+      "trees": 300,
+      "leaves": 31,
+      "learningRate": 0.1,
+      "cvAucMean": 0.79084383971537,
+      "cvAucStd": 0.004720011932622952
+    },
+    {
+      "trees": 300,
+      "leaves": 31,
+      "learningRate": 0.2,
+      "cvAucMean": 0.7748533452951755,
+      "cvAucStd": 0.00963387835155755
+    }
+  ],
+  "gridBest": {
+    "trees": 300,
+    "leaves": 10,
+    "learningRate": 0.1,
+    "cvAucMean": 0.79881502275005,
+    "cvAucStd": 0.008462006528020382,
+    "testAuc": 0.7973797661297661,
+    "testAuprc": 0.4613605326127011,
+    "testPrecision": 0.6247139588100686,
+    "testRecall": 0.24818181818181817,
+    "testF1": 0.35523747560182173
+  },
+  "productionTest": {
+    "Accuracy": 0.8925428948526177,
+    "AreaUnderRocCurve": 0.7944884088634089,
+    "AreaUnderPrecisionRecallCurve": 0.456234360949421,
+    "PositivePrecision": 0.6433566433566433,
+    "PositiveRecall": 0.2509090909090909,
+    "F1Score": 0.36102027468933945,
+    "LogLoss": 0.4220485488936805
+  },
+  "thresholds": [
+    {
+      "Threshold": 0.1,
+      "Tp": 719,
+      "Fp": 1445,
+      "Tn": 6547,
+      "Fn": 381,
+      "Precision": 0.3322550831792976,
+      "Recall": 0.6536363636363637,
+      "F1": 0.4405637254901961,
+      "Accuracy": 0.799164100307963
+    },
+    {
+      "Threshold": 0.15,
+      "Tp": 602,
+      "Fp": 782,
+      "Tn": 7210,
+      "Fn": 498,
+      "Precision": 0.434971098265896,
+      "Recall": 0.5472727272727272,
+      "F1": 0.4847020933977456,
+      "Accuracy": 0.8592168939727233
+    },
+    {
+      "Threshold": 0.2,
+      "Tp": 558,
+      "Fp": 631,
+      "Tn": 7361,
+      "Fn": 542,
+      "Precision": 0.4693019343986543,
+      "Recall": 0.5072727272727273,
+      "F1": 0.48754914809960687,
+      "Accuracy": 0.8709854817421909
+    },
+    {
+      "Threshold": 0.25,
+      "Tp": 515,
+      "Fp": 525,
+      "Tn": 7467,
+      "Fn": 585,
+      "Precision": 0.4951923076923077,
+      "Recall": 0.4681818181818182,
+      "F1": 0.4813084112149532,
+      "Accuracy": 0.877914650241971
+    },
+    {
+      "Threshold": 0.3,
+      "Tp": 464,
+      "Fp": 432,
+      "Tn": 7560,
+      "Fn": 636,
+      "Precision": 0.5178571428571429,
+      "Recall": 0.4218181818181818,
+      "F1": 0.46492985971943895,
+      "Accuracy": 0.882534095908491
+    },
+    {
+      "Threshold": 0.35,
+      "Tp": 407,
+      "Fp": 345,
+      "Tn": 7647,
+      "Fn": 693,
+      "Precision": 0.5412234042553191,
+      "Recall": 0.37,
+      "F1": 0.439524838012959,
+      "Accuracy": 0.8858336999560052
+    },
+    {
+      "Threshold": 0.4,
+      "Tp": 369,
+      "Fp": 275,
+      "Tn": 7717,
+      "Fn": 731,
+      "Precision": 0.5729813664596274,
+      "Recall": 0.33545454545454545,
+      "F1": 0.4231651376146789,
+      "Accuracy": 0.8893532776066871
+    },
+    {
+      "Threshold": 0.5,
+      "Tp": 276,
+      "Fp": 153,
+      "Tn": 7839,
+      "Fn": 824,
+      "Precision": 0.6433566433566433,
+      "Recall": 0.2509090909090909,
+      "F1": 0.36102027468933945,
+      "Accuracy": 0.8925428948526177
+    },
+    {
+      "Threshold": 0.6,
+      "Tp": 193,
+      "Fp": 80,
+      "Tn": 7912,
+      "Fn": 907,
+      "Precision": 0.706959706959707,
+      "Recall": 0.17545454545454545,
+      "F1": 0.2811361981063365,
+      "Accuracy": 0.8914430268367796
+    },
+    {
+      "Threshold": 0.7,
+      "Tp": 126,
+      "Fp": 42,
+      "Tn": 7950,
+      "Fn": 974,
+      "Precision": 0.75,
+      "Recall": 0.11454545454545455,
+      "F1": 0.19873817034700317,
+      "Accuracy": 0.8882534095908491
+    }
+  ],
+  "thresholdF1Optimal": {
+    "Threshold": 0.16868827,
+    "Tp": 589,
+    "Fp": 711,
+    "Tn": 7281,
+    "Fn": 511,
+    "Precision": 0.4530769230769231,
+    "Recall": 0.5354545454545454,
+    "F1": 0.4908333333333333,
+    "Accuracy": 0.8655961284645842
+  },
+  "confusionAt05": {
+    "Threshold": 0.5,
+    "Tp": 276,
+    "Fp": 153,
+    "Tn": 7839,
+    "Fn": 824,
+    "Precision": 0.6433566433566433,
+    "Recall": 0.2509090909090909,
+    "F1": 0.36102027468933945,
+    "Accuracy": 0.8925428948526177
+  },
+  "permutationImportance": [
+    {
+      "feature": "Month",
+      "aucDrop": 0.085763013013013,
+      "aucDropStd": 0.005103935901221871
+    },
+    {
+      "feature": "Contact",
+      "aucDrop": 0.0629753844753845,
+      "aucDropStd": 0.005990173666437603
+    },
+    {
+      "feature": "Day",
+      "aucDrop": 0.030568818818818854,
+      "aucDropStd": 0.0040401976439653296
+    },
+    {
+      "feature": "POutcome",
+      "aucDrop": 0.022775434525434558,
+      "aucDropStd": 0.0019176554089226049
+    },
+    {
+      "feature": "PDays",
+      "aucDrop": 0.00998653198653201,
+      "aucDropStd": 0.0007888485438428906
+    },
+    {
+      "feature": "Housing",
+      "aucDrop": 0.008539801164801176,
+      "aucDropStd": 0.0015696832127906454
+    },
+    {
+      "feature": "Age",
+      "aucDrop": 0.0063057148057148234,
+      "aucDropStd": 0.001869287240055772
+    },
+    {
+      "feature": "Marital",
+      "aucDrop": 0.005550311675311681,
+      "aucDropStd": 0.0011947569517325096
+    },
+    {
+      "feature": "Balance",
+      "aucDrop": 0.005462530712530755,
+      "aucDropStd": 0.002018053393696442
+    },
+    {
+      "feature": "Campaign",
+      "aucDrop": 0.005264821639821648,
+      "aucDropStd": 0.0006023590760068367
+    },
+    {
+      "feature": "Previous",
+      "aucDrop": 0.0013622713622713834,
+      "aucDropStd": 0.0012768467710966764
+    },
+    {
+      "feature": "Loan",
+      "aucDrop": 0.0013108904358904772,
+      "aucDropStd": 0.000955878508942233
+    },
+    {
+      "feature": "Job",
+      "aucDrop": 0.0010758372008372152,
+      "aucDropStd": 0.0006511165627482482
+    },
+    {
+      "feature": "Education",
+      "aucDrop": 0.0010590590590590753,
+      "aucDropStd": 0.0002418523450088796
+    },
+    {
+      "feature": "Default",
+      "aucDrop": 0,
+      "aucDropStd": 0
+    }
+  ],
+  "hybridTestSet": [
+    {
+      "strategy": "Fushat\u00EB masive (t\u00EB gjith\u00EB)",
+      "customers": 9092,
+      "selected": 9092,
+      "selectedShare": 1,
+      "subscribers": 1100,
+      "precision": 0.12098548174219094,
+      "recall": 1
+    },
+    {
+      "strategy": "Vet\u00EBm rregullat e biznesit",
+      "customers": 9092,
+      "selected": 2860,
+      "selectedShare": 0.31456225252969644,
+      "subscribers": 444,
+      "precision": 0.15524475524475526,
+      "recall": 0.4036363636363636
+    },
+    {
+      "strategy": "Vet\u00EBm modeli ML (prag 0,5)",
+      "customers": 9092,
+      "selected": 429,
+      "selectedShare": 0.04718433787945447,
+      "subscribers": 276,
+      "precision": 0.6433566433566433,
+      "recall": 0.2509090909090909
+    },
+    {
+      "strategy": "Arkitektura hibride (prag 0,5)",
+      "customers": 9092,
+      "selected": 187,
+      "selectedShare": 0.02056753189617246,
+      "subscribers": 108,
+      "precision": 0.5775401069518716,
+      "recall": 0.09818181818181818
+    },
+    {
+      "strategy": "Vet\u00EBm modeli ML (prag 0.17)",
+      "customers": 9092,
+      "selected": 1300,
+      "selectedShare": 0.14298284205895292,
+      "subscribers": 589,
+      "precision": 0.4530769230769231,
+      "recall": 0.5354545454545454
+    },
+    {
+      "strategy": "Arkitektura hibride (prag 0.17)",
+      "customers": 9092,
+      "selected": 564,
+      "selectedShare": 0.062032556093268805,
+      "subscribers": 256,
+      "precision": 0.45390070921985815,
+      "recall": 0.23272727272727273
+    }
+  ],
+  "ruleImpact": {
+    "passBalance": 0.3238592377961116,
+    "passAge": 0.9713344097675345,
+    "passDefault": 0.9819734135497998,
+    "passAll": 0.31291057486010043,
+    "subscriptionRatePass": 0.1456845974411536,
+    "subscriptionRateFail": 0.10391449909863508,
+    "subscribersPassingShare": 0.3896766874645491,
+    "customersFailingMoreThanOneRule": 1604
+  },
+  "riskLevels": [
+    {
+      "level": "Low",
+      "share": 0.27951162327752094,
+      "subscriptionRate": 0.15098520218406267
+    },
+    {
+      "level": "Medium",
+      "share": 0.6583132423525249,
+      "subscriptionRate": 0.10025871047945435
+    },
+    {
+      "level": "High",
+      "share": 0.06217513436995421,
+      "subscriptionRate": 0.14123087869085735
+    }
+  ],
+  "simulation": [
+    {
+      "referenceRate": 0,
+      "aiApproved": 2106,
+      "approved": 8,
+      "overridden": 2098,
+      "overriddenByRatePolicy": 1377,
+      "overriddenByBalance": 1031,
+      "overriddenByAge": 323,
+      "overriddenByDefault": 1,
+      "avgOfferedRate": 0.0230
+    },
+    {
+      "referenceRate": 0.02,
+      "aiApproved": 2106,
+      "approved": 856,
+      "overridden": 1250,
+      "overriddenByRatePolicy": 55,
+      "overriddenByBalance": 1031,
+      "overriddenByAge": 323,
+      "overriddenByDefault": 1,
+      "avgOfferedRate": 0.0265
+    },
+    {
+      "referenceRate": 0.04,
+      "aiApproved": 2106,
+      "approved": 911,
+      "overridden": 1195,
+      "overriddenByRatePolicy": 0,
+      "overriddenByBalance": 1031,
+      "overriddenByAge": 323,
+      "overriddenByDefault": 1,
+      "avgOfferedRate": 0.0460
+    },
+    {
+      "referenceRate": 0.06,
+      "aiApproved": 2106,
+      "approved": 911,
+      "overridden": 1195,
+      "overriddenByRatePolicy": 0,
+      "overriddenByBalance": 1031,
+      "overriddenByAge": 323,
+      "overriddenByDefault": 1,
+      "avgOfferedRate": 0.0660
+    },
+    {
+      "referenceRate": 0.08,
+      "aiApproved": 2106,
+      "approved": 911,
+      "overridden": 1195,
+      "overriddenByRatePolicy": 0,
+      "overriddenByBalance": 1031,
+      "overriddenByAge": 323,
+      "overriddenByDefault": 1,
+      "avgOfferedRate": 0.0860
+    },
+    {
+      "referenceRate": 0.10,
+      "aiApproved": 2106,
+      "approved": 903,
+      "overridden": 1203,
+      "overriddenByRatePolicy": 720,
+      "overriddenByBalance": 1031,
+      "overriddenByAge": 323,
+      "overriddenByDefault": 1,
+      "avgOfferedRate": 0.1059
+    },
+    {
+      "referenceRate": 0.12,
+      "aiApproved": 2106,
+      "approved": 58,
+      "overridden": 2048,
+      "overriddenByRatePolicy": 2048,
+      "overriddenByBalance": 1031,
+      "overriddenByAge": 323,
+      "overriddenByDefault": 1,
+      "avgOfferedRate": 0.1183
+    }
+  ],
+  "hybridFullDataset": [
+    {
+      "strategy": "Fushat\u00EB masive (t\u00EB gjith\u00EB)",
+      "customers": 45211,
+      "selected": 45211,
+      "selectedShare": 1,
+      "subscribers": 5289,
+      "precision": 0.11698480458295547,
+      "recall": 1
+    },
+    {
+      "strategy": "Vet\u00EBm rregullat e biznesit",
+      "customers": 45211,
+      "selected": 14147,
+      "selectedShare": 0.31291057486010043,
+      "subscribers": 2061,
+      "precision": 0.1456845974411536,
+      "recall": 0.3896766874645491
+    },
+    {
+      "strategy": "Vet\u00EBm modeli ML (prag 0,5)",
+      "customers": 45211,
+      "selected": 2106,
+      "selectedShare": 0.046581584127756516,
+      "subscribers": 1559,
+      "precision": 0.7402659069325735,
+      "recall": 0.29476271506901114
+    },
+    {
+      "strategy": "Arkitektura hibride (prag 0,5)",
+      "customers": 45211,
+      "selected": 911,
+      "selectedShare": 0.02014996350445688,
+      "subscribers": 661,
+      "precision": 0.725576289791438,
+      "recall": 0.1249763660427302
+    },
+    {
+      "strategy": "Vet\u00EBm modeli ML (prag 0.17)",
+      "customers": 45211,
+      "selected": 6430,
+      "selectedShare": 0.14222202561323571,
+      "subscribers": 3026,
+      "precision": 0.47060653188180407,
+      "recall": 0.5721308375874457
+    },
+    {
+      "strategy": "Arkitektura hibride (prag 0.17)",
+      "customers": 45211,
+      "selected": 2737,
+      "selectedShare": 0.060538364557298004,
+      "subscribers": 1260,
+      "precision": 0.46035805626598464,
+      "recall": 0.238230289279637
+    }
+  ],
+  "inProcessDecisionLatencyMs": {
+    "predictMean": 0.025485459999999988,
+    "predictP95": 0.0421,
+    "decisionMean": 0.04146968000000007,
+    "decisionP95": 0.0621
+  }
+}

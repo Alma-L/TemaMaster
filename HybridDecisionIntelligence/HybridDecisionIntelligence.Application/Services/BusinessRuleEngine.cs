@@ -76,31 +76,36 @@ namespace HybridDecisionIntelligence.Application.Services
             return result;
         }
 
+        /// <summary>
+        /// A rule checks only the criteria it configures, so a customer who fails one
+        /// condition (e.g. default history) fails exactly the rule that owns it.
+        /// </summary>
         private bool EvaluateRule(BankCustomer customer, BusinessRule rule)
         {
             // Balance check
-            if (customer.Balance < rule.MinBalance)
+            if (rule.MinBalance > 0 && customer.Balance < rule.MinBalance)
             {
                 _logger.LogWarning($"Rule '{rule.Name}' failed: Balance {customer.Balance} < {rule.MinBalance}");
                 return false;
             }
-            
-            // Age check
-            if (customer.Age < rule.MinAge || customer.Age > rule.MaxAge)
+
+            // Age check (MaxAge 0 = no upper bound)
+            if ((rule.MinAge > 0 && customer.Age < rule.MinAge) ||
+                (rule.MaxAge > 0 && customer.Age > rule.MaxAge))
             {
                 _logger.LogWarning($"Rule '{rule.Name}' failed: Age {customer.Age} not in range [{rule.MinAge}, {rule.MaxAge}]");
                 return false;
             }
-            
+
             // Job check
             if (rule.AllowedJobs.Any() && !rule.AllowedJobs.Contains(customer.Job))
             {
                 _logger.LogWarning($"Rule '{rule.Name}' failed: Job '{customer.Job}' not in allowed list");
                 return false;
             }
-            
+
             // Default history check
-            if (customer.Default == "yes")
+            if (rule.RequireNoDefault && customer.Default == "yes")
             {
                 _logger.LogWarning($"Rule '{rule.Name}' failed: Customer has default history");
                 return false;
