@@ -19,8 +19,9 @@ TemaMaster/
 │   ├── HybridDecisionIntelligence.Application/   DecisionEngine, BusinessRuleEngine, MLPredictor, MediatR handlers
 │   ├── HybridDecisionIntelligence.Infrastructure/ EF Core (SQL Server), ML.NET model service, QuestPDF reports, CSV import
 │   ├── HybridDecisionIntelligence.API/           REST API, Swagger, dataset (Data/BankData.csv) and trained model (Models/)
-│   ├── HybridDecisionIntelligence.Tests/         xUnit tests (32)
+│   ├── HybridDecisionIntelligence.Tests/         xUnit tests (34)
 │   └── seed-demo-data.py                        Sends random dataset rows through the live API
+├── HybridDecisionIntelligence.MLTraining/       Reproducible experiments behind Chapter 5 of the thesis (results/)
 └── HybridDecisionIntelligence.Frontend/         React 18 + TypeScript + Tailwind dashboard
 ```
 
@@ -99,6 +100,19 @@ python HybridDecisionIntelligence/seed-demo-data.py 500
 ```bash
 cd HybridDecisionIntelligence
 dotnet test
+```
+
+### 6. Reproduce the thesis experiments (optional)
+
+`HybridDecisionIntelligence.MLTraining` uses the same 80/20 split (seed 0) as the API's model and writes
+`results/experiment_results.json` and `results/pr_curve.csv`: the comparison with logistic regression, random
+forest and LightGBM (5-fold cross-validation), a FastTree grid search, threshold analysis and confusion
+matrices, permutation feature importance, the hybrid system evaluated on the held-out 20%, and the
+reference-rate simulation. It takes about 15–30 minutes and must be run from its own folder:
+
+```bash
+cd HybridDecisionIntelligence.MLTraining
+dotnet run -c Release
 ```
 
 ## API

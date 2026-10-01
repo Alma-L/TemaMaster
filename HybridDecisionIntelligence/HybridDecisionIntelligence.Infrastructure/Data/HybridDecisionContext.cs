@@ -1,4 +1,4 @@
-﻿using HybridDecisionIntelligence.Domain.Entities;
+using HybridDecisionIntelligence.Domain.Entities;
 using HybridDecisionIntelligence.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 

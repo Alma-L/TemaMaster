@@ -151,8 +151,13 @@ namespace HybridDecisionIntelligence.Infrastructure.ML
             {
                 _logger.LogInformation($"Evaluating model with test data from {testDataPath}");
                 
+                // The model is loaded lazily on the first prediction; evaluation may come first
+                if (_trainedModel == null) LoadModel(_modelPath);
+                var model = _trainedModel
+                    ?? throw new InvalidOperationException("Cannot evaluate: model not trained or loaded");
+
                 var testData = LoadData(testDataPath);
-                var predictions = _trainedModel.Transform(testData);
+                var predictions = model.Transform(testData);
                 
                 var metrics = _mlContext.BinaryClassification.Evaluate(predictions, labelColumnName: "Label");
                 
