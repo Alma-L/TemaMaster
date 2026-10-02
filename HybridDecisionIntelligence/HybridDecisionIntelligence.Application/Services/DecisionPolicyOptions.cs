@@ -12,7 +12,7 @@ namespace HybridDecisionIntelligence.Application.Services
         /// <summary>
         /// Market reference rate the offer is priced on (e.g. 3-month Euribor or the
         /// central bank policy rate), as a fraction: 0.04 = 4%. The customer's offered
-        /// rate is this reference plus a spread for model confidence and risk.
+        /// rate is this reference plus an incentive spread based on model confidence and customer profile.
         /// </summary>
         public decimal ReferenceRate { get; set; } = 0.04m;
     }

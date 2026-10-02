@@ -13,6 +13,11 @@ interface ModelMetrics {
   trainTestSplit?: { testFraction: number };
 }
 
+/** Size of the held-out test set (20% of 45 211, TrainTestSplit seed 0): 9 092 customers, 1 100 subscribers */
+const TEST_CUSTOMERS = 9092;
+/** "9 092": a space every three digits, also for four-digit numbers (as in the thesis) */
+const groupDigits = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+
 const METRICS: { key: keyof Omit<ModelMetrics, 'trainTestSplit'>; label: string; hint: string }[] = [
   { key: 'accuracy', label: 'Accuracy', hint: 'baza "gjithmonë jo": 87.9%' },
   { key: 'areaUnderRocCurve', label: 'AUC-ROC', hint: 'renditja e klientëve' },
@@ -47,7 +52,7 @@ export const ModelPerformanceCard: FC = () => {
       <CardHeader className="p-5 pb-3 space-y-1">
         <CardTitle className="flex items-center gap-2 text-base text-navy-900">
           <Brain className="w-4 h-4 text-navy-600" />
-          Performanca e Modelit ML.NET
+          Performanca e Modelit ML.NET — bashkësia e testimit ({groupDigits(TEST_CUSTOMERS)} klientë)
         </CardTitle>
         <CardDescription>
           Vlerësuar mbi {testShare}% të të dhënave që modeli nuk i pa gjatë trajnimit; atributi

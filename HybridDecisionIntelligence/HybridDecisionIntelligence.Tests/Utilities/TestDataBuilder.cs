@@ -39,9 +39,9 @@ namespace HybridDecisionIntelligence.Tests.Utilities
         }
 
         /// <summary>
-        /// Create a high-risk BankCustomer
+        /// Create a customer who fails the business rules (low balance, default history)
         /// </summary>
-        public static BankCustomer CreateHighRiskBankCustomer(int customerId = 2)
+        public static BankCustomer CreateIneligibleBankCustomer(int customerId = 2)
         {
             return new BankCustomer
             {
@@ -68,9 +68,9 @@ namespace HybridDecisionIntelligence.Tests.Utilities
         }
 
         /// <summary>
-        /// Create a low-risk BankCustomer
+        /// Create a customer who passes all business rules
         /// </summary>
-        public static BankCustomer CreateLowRiskBankCustomer(int customerId = 3)
+        public static BankCustomer CreateEligibleBankCustomer(int customerId = 3)
         {
             return new BankCustomer
             {

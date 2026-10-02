@@ -248,6 +248,15 @@ export const DecisionDashboard: React.FC = () => {
         {/* Rregullat reale të biznesit, marrë nga API-ja */}
         <BusinessRulesPanel />
 
+        {/* Which population the system results below refer to (the model card uses the test set) */}
+        {metrics && (
+          <p className="text-xs font-semibold uppercase tracking-wide text-navy-700 mb-3">
+            {activeFilterCount > 0
+              ? `Rezultatet e sistemit — vendimet që përputhen me filtrat (${metrics.total.toLocaleString('sq-AL')})`
+              : `Rezultatet e sistemit — dataset i plotë (${metrics.total.toLocaleString('sq-AL')} klientë)`}
+          </p>
+        )}
+
         {/* Metrics Summary Cards */}
         {metrics && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">

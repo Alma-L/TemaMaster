@@ -166,7 +166,7 @@ The response contains `mlPrediction`, `mlConfidence`, `finalDecision`, `wasOverr
 
 ```
 [Thought] ML Prediction: APPROVE (Confidence: 81.30%) |
-[Action] Business Rules Evaluation: FAIL (Risk: Medium) |
+[Action] Business Rules Evaluation: FAIL (Profile: P2) |
 [Action] Interest Rate Calculated: 5.87% (reference 4.00% + spread 1.87%) |
 [Action] Interest Rate Policy: PASS (within 2.00%–12.00%) |
 [Observation] OVERRIDE APPLIED: ML predicted APPROVE, but rules require REJECT |
@@ -177,7 +177,7 @@ The response contains `mlPrediction`, `mlConfidence`, `finalDecision`, `wasOverr
 ## How a decision is made
 
 1. **Thought:** the ML model predicts subscribe / not subscribe and returns a probability.
-2. **Action:** the rule engine evaluates every active rule and assigns a risk level. The offer's interest rate is then calculated and checked against the rules' rate corridor.
+2. **Action:** the rule engine evaluates every active rule and assigns a customer profile (P1–P3). The offer's interest rate is then calculated and checked against the rules' rate corridor.
 3. **Observation:** the final decision is `ML approves AND all rules pass`. A mismatch with the model is stored as a named override. The customer profile snapshot, prediction and decision are saved together.
 
 The rules have the power to veto the model: they can turn an ML approval into a rejection, but they never approve a customer the model rejected.
@@ -192,9 +192,11 @@ The rules have the power to veto the model: they can turn an ML approval into a 
 
 All three rules allow an interest-rate corridor of 2%–12%.
 
-### Risk level
+### Customer profile
 
-A risk score is built from these points:
+The product is a term deposit, so the bank pays the interest rate and takes no credit risk. The profile is a
+segmentation of the offer policy: it measures how far the customer is from the bank's core segment and only
+sizes the rate incentive. Points:
 
 | Factor | Points |
 |---|---|
@@ -206,14 +208,14 @@ A risk score is built from these points:
 | Personal loan | +1 |
 | Each failed rule | +2 |
 
-A score of ≤ 2 is **Low**, ≤ 5 is **Medium**, and anything higher is **High**.
+A score of ≤ 2 is **P1** (base), ≤ 5 is **P2** (intermediate), and anything higher is **P3** (high incentive).
 
 ### Interest rate
 
 ```
 rate = reference rate (DecisionPolicy:ReferenceRate, default 4%)
      + (1 − ML confidence) × 2%
-     + risk: Low 0% | Medium 1.5% | High 3%
+     + profile: P1 0% | P2 1.5% | P3 3%
      − balance bonus: 0.5% if > 50,000, 0.2% if > 10,000
      − age bonus:     0.5% if > 55,     0.2% if > 45
 ```

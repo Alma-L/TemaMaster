@@ -331,7 +331,7 @@ export const XaiDashboard: React.FC = () => {
                                   Final Decision: <span className="font-bold text-green-400">{getFinalDecisionLabel(decision)}</span>
                                 </p>
                                 <p className="text-slate-400 text-sm mt-2">
-                                  This decision was overridden due to specialized business rules that supersede the ML recommendation to ensure compliance and risk management.
+                                  This decision was overridden due to specialized business rules that supersede the ML recommendation to keep every decision within bank policy.
                                 </p>
                               </div>
                             </div>

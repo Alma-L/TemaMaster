@@ -88,7 +88,7 @@ namespace HybridDecisionIntelligence.Tests
             // Arrange
             var auditTrail = "Thought: ML probability=78%; " +
                            "Action: Business Rules Evaluated; " +
-                           "Observation: Risk Level=HIGH; " +
+                           "Observation: Profile=P3; " +
                            "Interest Rate=3.50%; " +
                            "Final Decision=APPROVED";
 

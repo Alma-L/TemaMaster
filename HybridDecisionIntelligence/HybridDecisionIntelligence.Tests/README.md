@@ -243,9 +243,9 @@ Creates test data and mocks without physical file dependencies:
 // Create test customer
 var customer = TestDataBuilder.CreateValidBankCustomer(customerId: 1001);
 
-// Create high/low risk customers
-var highRisk = TestDataBuilder.CreateHighRiskBankCustomer();
-var lowRisk = TestDataBuilder.CreateLowRiskBankCustomer();
+// Create customers who fail / pass the business rules
+var ineligible = TestDataBuilder.CreateIneligibleBankCustomer();
+var eligible = TestDataBuilder.CreateEligibleBankCustomer();
 
 // Create batch of customers
 var customers = TestDataBuilder.CreateBatchOfCustomers(count: 100);
