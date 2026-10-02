@@ -167,7 +167,11 @@ export const DecisionDetail: FC<DecisionDetailProps> = ({ decision, onClose }) =
 
   const auditComponents = parseAuditTrail(decision.auditTrail);
   const plainSummary = buildPlainSummary(decision);
-  const decisionTime = new Date(decision.createdAt).toLocaleString('sq-AL');
+  // Explicit dd/MM/yyyy, HH:mm:ss: 'sq-AL' alone renders differently across browsers
+  const decisionTime = new Date(decision.createdAt).toLocaleString('en-GB', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  });
 
   const copyAuditTrail = async () => {
     const text = `Vendimi #${decision.id}\n\n${plainSummary}\n\nGjurma teknike:\n${decision.auditTrail}`;
@@ -388,7 +392,7 @@ export const DecisionDetail: FC<DecisionDetailProps> = ({ decision, onClose }) =
               />
               <AccordionContent className="px-4 py-4 bg-slate-50 border-t space-y-3">
                 <InfoBlock title="Vendimi Final">
-                  <p className="text-lg font-bold text-success-700">
+                  <p className={`text-lg font-bold ${decision.finalDecision ? 'text-success-700' : 'text-danger-600'}`}>
                     {decision.finalDecision ? 'VENDIMI: MIRATUAR' : 'VENDIMI: REFUZUAR'}
                   </p>
                   <p className="text-xs text-slate-400 mt-1">Verdikti i kombinuar i AI-së dhe rregullave të biznesit</p>

@@ -87,7 +87,7 @@ namespace HybridDecisionIntelligence.Tests
             {
                 IsApproved = false,
                 FailedRules = new() { "Minimum Balance Rule" },
-                RiskLevel = "High"
+                ProfileLevel = "P3"
             };
             _mockRuleEngine.Setup(m => m.EvaluateAsync(It.IsAny<BankCustomer>()))
                 .ReturnsAsync(ruleResult);
@@ -138,7 +138,7 @@ namespace HybridDecisionIntelligence.Tests
             {
                 IsApproved = false,
                 FailedRules = new() { "Age Eligibility Rule" },
-                RiskLevel = "Medium"
+                ProfileLevel = "P2"
             };
             _mockRuleEngine.Setup(m => m.EvaluateAsync(It.IsAny<BankCustomer>()))
                 .ReturnsAsync(ruleResult);
@@ -185,7 +185,7 @@ namespace HybridDecisionIntelligence.Tests
             {
                 IsApproved = true,
                 AppliedRules = new() { "Minimum Balance Rule", "No Default History" },
-                RiskLevel = "Low"
+                ProfileLevel = "P1"
             };
             _mockRuleEngine.Setup(m => m.EvaluateAsync(It.IsAny<BankCustomer>()))
                 .ReturnsAsync(ruleResult);
@@ -233,7 +233,7 @@ namespace HybridDecisionIntelligence.Tests
             {
                 IsApproved = true,
                 AppliedRules = new() { "Minimum Balance Rule" },
-                RiskLevel = "Medium"
+                ProfileLevel = "P2"
             };
             _mockRuleEngine.Setup(m => m.EvaluateAsync(It.IsAny<BankCustomer>()))
                 .ReturnsAsync(ruleResult);
@@ -278,7 +278,7 @@ namespace HybridDecisionIntelligence.Tests
             {
                 IsApproved = true, // Rules Approve
                 AppliedRules = new() { "Minimum Balance Rule", "Age Eligibility Rule", "No Default History" },
-                RiskLevel = "Low"
+                ProfileLevel = "P1"
             };
             _mockRuleEngine.Setup(m => m.EvaluateAsync(It.IsAny<BankCustomer>()))
                 .ReturnsAsync(ruleResult);
@@ -316,7 +316,7 @@ namespace HybridDecisionIntelligence.Tests
             {
                 IsApproved = false, // Rules Reject
                 FailedRules = new() { "Minimum Balance Rule", "No Default History" },
-                RiskLevel = "High"
+                ProfileLevel = "P3"
             };
             _mockRuleEngine.Setup(m => m.EvaluateAsync(It.IsAny<BankCustomer>()))
                 .ReturnsAsync(ruleResult);
@@ -365,7 +365,7 @@ namespace HybridDecisionIntelligence.Tests
             {
                 IsApproved = true,
                 AppliedRules = new() { "Age Eligibility Rule", "Minimum Balance Rule", "No Default History" },
-                RiskLevel = "Low"
+                ProfileLevel = "P1"
             };
             _mockRuleEngine.Setup(m => m.EvaluateAsync(It.IsAny<BankCustomer>()))
                 .ReturnsAsync(ruleResult);

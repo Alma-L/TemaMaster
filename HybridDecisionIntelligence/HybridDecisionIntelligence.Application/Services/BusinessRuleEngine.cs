@@ -16,7 +16,11 @@ namespace HybridDecisionIntelligence.Application.Services
     public class BusinessRuleResult
     {
         public bool IsApproved { get; set; }
-        public string RiskLevel { get; set; } = "Unknown"; // Low, Medium, High
+        /// <summary>
+        /// Customer profile for the offer: P1 (base), P2 (intermediate), P3 (high incentive): how far the customer is from the
+        /// bank's core segment. It sizes the deposit-rate incentive; it is not a credit-risk score.
+        /// </summary>
+        public string ProfileLevel { get; set; } = "Unknown";
         public List<string> AppliedRules { get; set; } = new();
         public List<string> FailedRules { get; set; } = new();
 
@@ -69,9 +73,9 @@ namespace HybridDecisionIntelligence.Application.Services
                 result.MinInterestRate = rules.Max(r => r.MinInterestRate);
                 result.MaxInterestRate = rules.Min(r => r.MaxInterestRate);
             }
-            result.RiskLevel = DetermineRiskLevel(customer, result);
+            result.ProfileLevel = DetermineProfileLevel(customer, result);
             
-            _logger.LogInformation($"Rule evaluation complete. Approved: {result.IsApproved}, Risk: {result.RiskLevel}");
+            _logger.LogInformation($"Rule evaluation complete. Approved: {result.IsApproved}, Profile: {result.ProfileLevel}");
             
             return result;
         }
@@ -115,31 +119,31 @@ namespace HybridDecisionIntelligence.Application.Services
             return true;
         }
 
-        private string DetermineRiskLevel(BankCustomer customer, BusinessRuleResult result)
+        private string DetermineProfileLevel(BankCustomer customer, BusinessRuleResult result)
         {
-            // Determine risk based on customer profile
-            int riskScore = 0;
+            // Distance from the core segment, scored on the customer profile
+            int profileScore = 0;
             
             // Balance score
-            if (customer.Balance < 0) riskScore += 3;
-            else if (customer.Balance < 5000) riskScore += 2;
-            else if (customer.Balance < 50000) riskScore += 1;
+            if (customer.Balance < 0) profileScore += 3;
+            else if (customer.Balance < 5000) profileScore += 2;
+            else if (customer.Balance < 50000) profileScore += 1;
             
             // Age score
-            if (customer.Age < 25) riskScore += 2;
-            else if (customer.Age > 65) riskScore += 1;
+            if (customer.Age < 25) profileScore += 2;
+            else if (customer.Age > 65) profileScore += 1;
             
             // Loan/Housing score
-            if (customer.Loan == "yes") riskScore += 1;
+            if (customer.Loan == "yes") profileScore += 1;
             
             // Failed rules penalty
-            riskScore += result.FailedRules.Count * 2;
+            profileScore += result.FailedRules.Count * 2;
             
-            return riskScore switch
+            return profileScore switch
             {
-                <= 2 => "Low",
-                <= 5 => "Medium",
-                _ => "High"
+                <= 2 => "P1",
+                <= 5 => "P2",
+                _ => "P3"
             };
         }
     }

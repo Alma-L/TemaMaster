@@ -418,19 +418,19 @@
     "subscribersPassingShare": 0.3896766874645491,
     "customersFailingMoreThanOneRule": 1604
   },
-  "riskLevels": [
+  "profileLevels": [
     {
-      "level": "Low",
+      "level": "P1",
       "share": 0.27951162327752094,
       "subscriptionRate": 0.15098520218406267
     },
     {
-      "level": "Medium",
+      "level": "P2",
       "share": 0.6583132423525249,
       "subscriptionRate": 0.10025871047945435
     },
     {
-      "level": "High",
+      "level": "P3",
       "share": 0.06217513436995421,
       "subscriptionRate": 0.14123087869085735
     }

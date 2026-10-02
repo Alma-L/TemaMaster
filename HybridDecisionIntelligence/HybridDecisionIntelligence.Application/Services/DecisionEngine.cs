@@ -18,7 +18,7 @@ namespace HybridDecisionIntelligence.Application.Services
     /// <summary>
     /// Runs every decision as an explicit Thought–Action–Observation cycle:
     ///   Thought     – the ML model's hypothesis (predicted label + probability)
-    ///   Action      – deterministic business rules, risk level, offer pricing on the
+    ///   Action      – deterministic business rules, customer profile, offer pricing on the
     ///                 macro-economic reference rate, and the interest-rate policy rule
     ///   Observation – the final decision, any override and its reason
     /// Each audit-trail entry is tagged with its phase ([Thought]/[Action]/[Observation]).
@@ -62,10 +62,10 @@ namespace HybridDecisionIntelligence.Application.Services
 
             // ACTION 1: deterministic business rules (stored in the database)
             var ruleResult = await _ruleEngine.EvaluateAsync(customer);
-            Action($"Business Rules Evaluation: {(ruleResult.IsApproved ? "PASS" : "FAIL")} (Risk: {ruleResult.RiskLevel})");
+            Action($"Business Rules Evaluation: {(ruleResult.IsApproved ? "PASS" : "FAIL")} (Profile: {ruleResult.ProfileLevel})");
 
             // ACTION 2: price the offer on the macro-economic reference rate
-            var interestRate = CalculateInterestRate(customer, mlConfidence, ruleResult.RiskLevel);
+            var interestRate = CalculateInterestRate(customer, mlConfidence, ruleResult.ProfileLevel);
             Action($"Interest Rate Calculated: {interestRate:P2} (reference {_policy.ReferenceRate:P2} + spread {interestRate - _policy.ReferenceRate:P2})");
 
             // ACTION 3: dynamic rule - the offer must stay inside the rules' rate corridor
@@ -146,22 +146,22 @@ namespace HybridDecisionIntelligence.Application.Services
         /// Offered deposit rate = reference rate + acquisition incentive. The bank pays
         /// this rate, so the spread is an incentive: it grows for customers the model sees
         /// as less likely to subscribe and for profiles further from the bank's core
-        /// segment (risk level), and shrinks for established customers (high balance,
+        /// segment (profile level), and shrinks for established customers (high balance,
         /// mature age) who need less incentive. The coefficients are illustrative policy
         /// parameters, not calibrated values. The rate is not clamped: an offer outside
         /// the policy corridor is rejected by the interest-rate policy rule instead.
         /// </summary>
-        private decimal CalculateInterestRate(BankCustomer customer, float mlConfidence, string riskLevel)
+        private decimal CalculateInterestRate(BankCustomer customer, float mlConfidence, string profileLevel)
         {
             // Incentive for uncertain customers: lower subscription probability = higher rate
             decimal confidenceAdjustment = (1 - (decimal)mlConfidence) * 0.02m;
 
             // Profile adjustment: customers outside the core segment get a larger incentive
-            decimal riskAdjustment = riskLevel switch
+            decimal profileAdjustment = profileLevel switch
             {
-                "Low" => 0.0m,
-                "Medium" => 0.015m,
-                "High" => 0.03m,
+                "P1" => 0.0m,
+                "P2" => 0.015m,
+                "P3" => 0.03m,
                 _ => 0.02m
             };
 
@@ -183,7 +183,7 @@ namespace HybridDecisionIntelligence.Application.Services
 
             // 4 decimals = the precision the rate is stored with (decimal(5,4))
             return Math.Round(
-                _policy.ReferenceRate + confidenceAdjustment + riskAdjustment + balanceAdjustment + ageAdjustment, 4);
+                _policy.ReferenceRate + confidenceAdjustment + profileAdjustment + balanceAdjustment + ageAdjustment, 4);
         }
     }
 }

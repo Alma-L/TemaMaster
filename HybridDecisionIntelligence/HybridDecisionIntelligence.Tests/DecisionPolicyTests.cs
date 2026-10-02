@@ -30,7 +30,7 @@ namespace HybridDecisionIntelligence.Tests
         private static MLPredictionResult Approve(float probability) =>
             new() { Id = 7, CustomerId = 1, PredictedLabel = true, Probability = probability };
 
-        /// <summary>Rules pass, Low risk, corridor 2%–12% (the seeded rules' bounds)</summary>
+        /// <summary>Rules pass, profile P1, corridor 2%–12% (the seeded rules' bounds)</summary>
         private static DecisionEngine Engine(decimal referenceRate)
         {
             var ruleEngine = new Mock<IBusinessRuleEngine>();
@@ -39,7 +39,7 @@ namespace HybridDecisionIntelligence.Tests
                 .ReturnsAsync(new BusinessRuleResult
                 {
                     IsApproved = true,
-                    RiskLevel = "Low",
+                    ProfileLevel = "P1",
                     AppliedRules = new() { "Minimum Balance Rule" },
                     MinInterestRate = 0.02m,
                     MaxInterestRate = 0.12m

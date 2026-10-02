@@ -14,7 +14,7 @@ interface ModelMetrics {
 }
 
 const METRICS: { key: keyof Omit<ModelMetrics, 'trainTestSplit'>; label: string; hint: string }[] = [
-  { key: 'accuracy', label: 'Accuracy', hint: 'baza "gjithmonë jo": 88.3%' },
+  { key: 'accuracy', label: 'Accuracy', hint: 'baza "gjithmonë jo": 87.9%' },
   { key: 'areaUnderRocCurve', label: 'AUC-ROC', hint: 'renditja e klientëve' },
   { key: 'positivePrecision', label: 'Precision', hint: 'sa nga të përzgjedhurit abonohen' },
   { key: 'positiveRecall', label: 'Recall', hint: 'sa nga abonentët gjenden' },

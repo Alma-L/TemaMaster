@@ -15,7 +15,7 @@ using Microsoft.ML.Data;
 //   3. threshold / precision-recall analysis and confusion matrices
 //   4. permutation feature importance per original attribute
 //   5. the hybrid system evaluated on the held-out 20% only
-//   6. rule impact, risk levels and reference-rate simulation on the full dataset
+//   6. rule impact, customer profiles and reference-rate simulation on the full dataset
 //
 // Usage: dotnet run -c Release -- [dataPath] [modelPath] [outDir]
 CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
@@ -215,11 +215,11 @@ results["ruleImpact"] = new Dictionary<string, object>
         .Count(i => ruleResults[i].IsApproved && allCustomers[i].SubscribedToTerm) / (double)subscribers,
     ["customersFailingMoreThanOneRule"] = Enumerable.Range(0, allCustomers.Count).Count(i => ruleResults[i].FailedRules.Count > 1),
 };
-results["riskLevels"] = new[] { "Low", "Medium", "High" }.Select(level => new
+results["profileLevels"] = new[] { "P1", "P2", "P3" }.Select(level => new
 {
     level,
-    share = Share(i => ruleResults[i].RiskLevel == level),
-    subscriptionRate = Rate(i => ruleResults[i].RiskLevel == level)
+    share = Share(i => ruleResults[i].ProfileLevel == level),
+    subscriptionRate = Rate(i => ruleResults[i].ProfileLevel == level)
 }).ToList();
 
 var simulation = new List<Dictionary<string, object>>();
